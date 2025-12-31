@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Modal, ActivityIndicator, Alert, Switch, KeyboardAvoidingView, Platform } from 'react-native';
 import { TransactionType, PaymentMethod, Category } from '../types';
-import { ChevronDown, Loader2 } from 'lucide-react-native'; // Use lucide-react-native
+import { ChevronDown, Calendar, CreditCard, Wallet, Banknote, Sparkles, Check, ListChecks, X, Repeat, ArrowDownCircle, ArrowUpCircle } from 'lucide-react-native';
+// Biblioteca de IA
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 interface Props {
   categories: Category[];
@@ -10,120 +12,352 @@ interface Props {
 }
 
 const TransactionForm: React.FC<Props> = ({ categories, onAdd, onCancel }) => {
+  // --- Estados ---
   const [type, setType] = useState<TransactionType>(TransactionType.EXPENSE);
-  const [amount, setAmount] = useState('');
+  const [amount, setAmount] = useState('0,00'); 
+  const [rawValue, setRawValue] = useState(0); 
   const [description, setDescription] = useState('');
-  const [isProcessingIA, setIsProcessingIA] = useState(false);
+  const [date, setDate] = useState('');
   
   const currentCategories = categories.filter(c => c.type === type);
-  const [category, setCategory] = useState(currentCategories[0]?.name || '');
+  const [category, setCategory] = useState<Category | null>(null);
+  
+  // Inicializa com um valor que EXISTE no types.ts
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.DEBIT);
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  
+  const [detailsText, setDetailsText] = useState('');
+  const [isProcessingIA, setIsProcessingIA] = useState(false);
+  const [showDetailsInput, setShowDetailsInput] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  
+  const [isRecurrent, setIsRecurrent] = useState(false);
+  const [recurrenceType, setRecurrenceType] = useState<'fixed' | 'installments'>('fixed');
 
-  const handleSubmit = () => {
-    if (!amount || !description) {
-      Alert.alert("Erro", "Preencha valor e descrição");
+  useEffect(() => {
+    const today = new Date();
+    setDate(today.toLocaleDateString('pt-BR'));
+    if (currentCategories.length > 0) {
+      setCategory(currentCategories[0]);
+    } else {
+      setCategory(null);
+    }
+  }, [type]);
+
+  const handleAmountChange = (text: string) => {
+    const cleanValue = text.replace(/\D/g, '');
+    const numberValue = parseInt(cleanValue || '0') / 100;
+    setRawValue(numberValue);
+    setAmount(numberValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
+  };
+
+  const handleDateChange = (text: string) => {
+    let clean = text.replace(/\D/g, '');
+    if (clean.length > 8) clean = clean.substring(0, 8);
+    let formatted = clean;
+    if (clean.length >= 3) formatted = `${clean.substring(0, 2)}/${clean.substring(2)}`;
+    if (clean.length >= 5) formatted = `${formatted.substring(0, 5)}/${clean.substring(4)}`;
+    setDate(formatted);
+  };
+
+  const processDetailsWithIA = async () => {
+    if (!detailsText.trim()) return null;
+    setIsProcessingIA(true);
+    try {
+      const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+      console.log("CHAVE SENDO USADA:", apiKey); // Log para debug
+
+      if (!apiKey) {
+        throw new Error("Chave de API não encontrada (undefined).");
+      }
+
+      const genAI = new GoogleGenerativeAI(apiKey);
+      // Usando gemini-pro que é mais estável para contas gratuitas/novas
+      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+
+      const prompt = `
+        Analise o texto: "${detailsText}".
+        Extraia os itens comprados em formato JSON.
+        Responda APENAS o JSON, sem formatação Markdown.
+        Exemplo: [{"item": "Arroz", "amount": 20.00, "quantity": "1 pct"}]
+        Se não houver valor, use 0.
+      `;
+
+      const result = await model.generateContent(prompt);
+      let text = result.response.text();
+
+      // Limpeza robusta
+      text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+      
+      return JSON.parse(text);
+
+    } catch (error: any) {
+      console.error("Erro IA Detalhado:", error);
+      
+      let msg = "Não foi possível ler os detalhes.";
+      if (error.message?.includes('404')) {
+        msg = "Modelo não encontrado. Verifique se a API Generative Language está ativa no Google Cloud.";
+      } else if (error.message?.includes('403') || error.message?.includes('401')) {
+        msg = "Chave de API inválida ou expirada.";
+      } else if (error.message?.includes('undefined')) {
+         msg = "Chave de API não carregada. Reinicie com 'npx expo start -c'";
+      }
+
+      Alert.alert("Aviso da IA", msg);
+      return null;
+    } finally {
+      setIsProcessingIA(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (rawValue <= 0 || !description) {
+      Alert.alert("Campos Obrigatórios", "Por favor, informe o valor e a descrição.");
       return;
     }
 
+    const parts = date.split('/');
+    if (parts.length !== 3 || parts[0].length !== 2 || parts[1].length !== 2 || parts[2].length !== 4) {
+      Alert.alert("Data Inválida", "Use o formato DD/MM/AAAA");
+      return;
+    }
+    const [day, month, year] = parts;
+    const formattedDate = `${year}-${month}-${day}`;
+
+    let finalDetails = undefined;
+    if (showDetailsInput && detailsText.trim().length > 0) {
+      finalDetails = await processDetailsWithIA();
+    }
+
     onAdd({
-      amount: parseFloat(amount),
+      amount: rawValue,
       description,
-      category,
+      category: category?.name || 'Geral',
       type,
-      date,
+      date: formattedDate,
       paymentMethod,
-      isRecurrent: false,
+      isRecurrent,
+      recurrenceType: isRecurrent ? recurrenceType : undefined,
+      details: finalDetails 
     });
   };
 
+  const isExpense = type === TransactionType.EXPENSE;
+  const activeColor = isExpense ? '#ef4444' : '#10b981';
+  const activeBg = isExpense ? 'bg-red-500' : 'bg-emerald-500';
+
+  const paymentOptions = [
+    { id: PaymentMethod.DEBIT, label: 'Débito', icon: Wallet },
+    { id: PaymentMethod.CREDIT, label: 'Crédito', icon: CreditCard },
+    { id: PaymentMethod.CASH, label: 'Dinheiro', icon: Banknote },
+  ];
+
   return (
-    <View className="space-y-6">
-      {/* Botões de Tipo */}
-      <View className="flex-row bg-slate-100 p-1.5 rounded-3xl">
-        <TouchableOpacity 
-          onPress={() => setType(TransactionType.EXPENSE)}
-          className={`flex-1 py-3.5 rounded-2xl items-center ${type === TransactionType.EXPENSE ? 'bg-white shadow-sm' : ''}`}
-        >
-          <Text className={`text-sm font-bold ${type === TransactionType.EXPENSE ? 'text-rose-500' : 'text-slate-400'}`}>Despesa</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          onPress={() => setType(TransactionType.INCOME)}
-          className={`flex-1 py-3.5 rounded-2xl items-center ${type === TransactionType.INCOME ? 'bg-white shadow-sm' : ''}`}
-        >
-          <Text className={`text-sm font-bold ${type === TransactionType.INCOME ? 'text-emerald-500' : 'text-slate-400'}`}>Receita</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Input de Valor */}
-      <View className="items-center py-4">
-        <Text className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-2">Valor Total</Text>
-        <View className="flex-row items-center gap-1.5">
-          <Text className="text-2xl font-bold text-slate-300">R$</Text>
-          <TextInput 
-            keyboardType="numeric"
-            placeholder="0,00"
-            value={amount}
-            onChangeText={setAmount}
-            className="text-5xl font-bold text-slate-800 w-56 text-center"
-            placeholderTextColor="#e2e8f0"
-          />
-        </View>
-      </View>
-
-      {/* Formulário */}
-      <View className="space-y-5">
-        <View>
-          <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 px-1">Descrição</Text>
-          <TextInput 
-            placeholder="Ex: Supermercado"
-            value={description}
-            onChangeText={setDescription}
-            className="w-full bg-slate-50 border border-slate-100 p-4 rounded-2xl text-slate-800"
-          />
-        </View>
-
-        {/* Categoria e Data - Adaptação simplificada */}
-        <View className="flex-row gap-4">
-            {/* Em RN normalmente usamos um Modal ou Picker para Select, aqui simplificado */}
-             <View className="flex-1">
-                <Text className="text-[10px] font-bold text-slate-400 uppercase mb-2">Categoria</Text>
-                <View className="bg-slate-50 border border-slate-100 p-4 rounded-2xl">
-                    <Text className="text-slate-700 font-bold">{category || 'Selecione'}</Text>
-                </View>
-             </View>
-             
-             <View className="flex-1">
-                <Text className="text-[10px] font-bold text-slate-400 uppercase mb-2">Data</Text>
-                <TextInput 
-                  value={date}
-                  onChangeText={setDate}
-                  placeholder="AAAA-MM-DD"
-                  className="bg-slate-50 border border-slate-100 p-4 rounded-2xl text-slate-700 font-bold"
-                />
-             </View>
-        </View>
-      </View>
-
-      {/* Botões de Ação */}
-      <View className="flex-row gap-4 pt-6 pb-10">
-        <TouchableOpacity onPress={onCancel} className="flex-1 py-4 items-center">
-          <Text className="font-bold text-slate-400">Voltar</Text>
-        </TouchableOpacity>
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
+      <View className="flex-1 pb-6">
         
-        <TouchableOpacity 
-          onPress={handleSubmit}
-          disabled={isProcessingIA}
-          className={`flex-[2] py-4 rounded-3xl items-center shadow-lg ${type === TransactionType.EXPENSE ? 'bg-rose-500' : 'bg-emerald-500'}`}
-        >
-          {isProcessingIA ? (
-            <Loader2 size={20} color="#FFF" />
-          ) : (
-            <Text className="text-white font-bold">Confirmar</Text>
-          )}
-        </TouchableOpacity>
+        {/* TOPO: Seletor */}
+        <View className="flex-row mb-6 bg-slate-100 p-1 rounded-xl">
+          <TouchableOpacity 
+            onPress={() => setType(TransactionType.EXPENSE)}
+            className={`flex-1 flex-row items-center justify-center gap-2 py-3 rounded-lg ${isExpense ? 'bg-white shadow-sm' : ''}`}
+          >
+            <ArrowDownCircle size={20} color={isExpense ? '#ef4444' : '#94a3b8'} />
+            <Text className={`font-bold ${isExpense ? 'text-red-500' : 'text-slate-400'}`}>Despesa</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            onPress={() => setType(TransactionType.INCOME)}
+            className={`flex-1 flex-row items-center justify-center gap-2 py-3 rounded-lg ${!isExpense ? 'bg-white shadow-sm' : ''}`}
+          >
+            <ArrowUpCircle size={20} color={!isExpense ? '#10b981' : '#94a3b8'} />
+            <Text className={`font-bold ${!isExpense ? 'text-emerald-500' : 'text-slate-400'}`}>Receita</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* VALOR */}
+        <View className="items-center mb-8">
+          <Text className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">Valor Total</Text>
+          <View className="flex-row items-center">
+            <Text className={`text-3xl font-bold mr-2 ${isExpense ? 'text-red-500' : 'text-emerald-500'}`}>R$</Text>
+            <TextInput 
+              value={amount}
+              onChangeText={handleAmountChange}
+              keyboardType="numeric"
+              className={`text-5xl font-bold ${isExpense ? 'text-red-500' : 'text-emerald-500'} min-w-[150px] text-center`}
+              placeholder="0,00"
+              placeholderTextColor="#cbd5e1"
+            />
+          </View>
+        </View>
+
+        {/* Formulário */}
+        <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+          <View className="space-y-4">
+            
+            {/* Descrição */}
+            <View>
+              <Text className="text-xs text-slate-400 font-bold ml-1 mb-1">DESCRIÇÃO</Text>
+              <View className="bg-slate-50 border border-slate-200 rounded-xl flex-row items-center p-3 gap-3">
+                <ListChecks size={20} color="#94a3b8" />
+                <TextInput 
+                  value={description}
+                  onChangeText={setDescription}
+                  placeholder="Ex: Supermercado..."
+                  className="flex-1 text-base font-medium text-slate-800"
+                />
+              </View>
+            </View>
+
+            <View className="flex-row gap-3">
+              {/* Categoria */}
+              <View className="flex-1">
+                <Text className="text-xs text-slate-400 font-bold ml-1 mb-1">CATEGORIA</Text>
+                <TouchableOpacity 
+                  onPress={() => setShowCategoryModal(true)}
+                  className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex-row items-center justify-between"
+                >
+                  <Text className="font-bold text-slate-700" numberOfLines={1}>{category?.name || 'Selecione'}</Text>
+                  <ChevronDown size={16} color="#64748b" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Data */}
+              <View className="flex-1">
+                <Text className="text-xs text-slate-400 font-bold ml-1 mb-1">DATA</Text>
+                <View className="bg-slate-50 border border-slate-200 rounded-xl flex-row items-center p-3 gap-2">
+                  <Calendar size={18} color="#94a3b8" />
+                  <TextInput 
+                    value={date}
+                    onChangeText={handleDateChange}
+                    placeholder="DD/MM/AAAA"
+                    keyboardType="numeric"
+                    maxLength={10}
+                    className="flex-1 font-bold text-slate-700"
+                  />
+                </View>
+              </View>
+            </View>
+
+            {/* Pagamento */}
+            <View>
+              <Text className="text-xs text-slate-400 font-bold ml-1 mb-1">PAGAMENTO</Text>
+              <View className="flex-row flex-wrap gap-2">
+                {paymentOptions.map((item) => {
+                  const isActive = paymentMethod === item.id;
+                  return (
+                    <TouchableOpacity
+                      key={item.id}
+                      onPress={() => setPaymentMethod(item.id)}
+                      className={`px-4 py-2.5 rounded-lg border ${isActive ? (isExpense ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200') : 'bg-white border-slate-200'}`}
+                    >
+                      <View className="flex-row items-center gap-2">
+                        <item.icon size={16} color={isActive ? (isExpense ? '#dc2626' : '#059669') : '#64748b'} />
+                        <Text className={`text-xs font-bold ${isActive ? (isExpense ? 'text-red-600' : 'text-emerald-600') : 'text-slate-500'}`}>
+                          {item.label}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Recorrência */}
+            <View className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex-row justify-between items-center mt-2">
+              <View className="flex-row items-center gap-2">
+                <Repeat size={18} color="#64748b" />
+                <Text className="text-slate-600 font-bold text-sm">Repetir mensalmente?</Text>
+              </View>
+              <Switch 
+                value={isRecurrent} 
+                onValueChange={setIsRecurrent}
+                trackColor={{ true: activeColor }}
+              />
+            </View>
+
+            {/* IA Detalhes */}
+            <View>
+              <TouchableOpacity 
+                onPress={() => setShowDetailsInput(!showDetailsInput)}
+                className="flex-row items-center gap-2 py-2"
+              >
+                <Sparkles size={16} color={activeColor} />
+                <Text className={`text-xs font-bold ${isExpense ? 'text-red-500' : 'text-emerald-500'}`}>
+                   {showDetailsInput ? 'Esconder Leitura Inteligente' : 'Detalhar com IA'}
+                </Text>
+              </TouchableOpacity>
+              
+              {showDetailsInput && (
+                <View className="p-3 rounded-xl border border-slate-100 bg-white">
+                  <TextInput 
+                    multiline
+                    placeholder="Cole aqui o texto da nota fiscal ou digite: 2x Arroz 30,00..."
+                    className="h-24 text-slate-700 text-sm leading-5"
+                    textAlignVertical="top"
+                    value={detailsText}
+                    onChangeText={setDetailsText}
+                  />
+                  <Text className="text-[10px] text-slate-400 mt-2 text-right">A IA separará os itens ao clicar em Salvar.</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </ScrollView>
+
+        {/* Botões */}
+        <View className="flex-row gap-3 pt-4 border-t border-slate-100 mt-2">
+          <TouchableOpacity 
+            onPress={onCancel} 
+            className="flex-1 py-4 bg-slate-100 rounded-xl items-center"
+          >
+            <Text className="font-bold text-slate-500">Cancelar</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            onPress={handleSubmit}
+            disabled={isProcessingIA}
+            className={`flex-[2] py-4 rounded-xl items-center flex-row justify-center gap-2 ${activeBg} ${isProcessingIA ? 'opacity-70' : ''}`}
+          >
+            {isProcessingIA ? <ActivityIndicator color="white" size="small" /> : <Check size={20} color="white" />}
+            <Text className="font-bold text-white text-base">
+              {isProcessingIA ? 'Lendo IA...' : 'Salvar'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Modal Categorias */}
+        <Modal visible={showCategoryModal} animationType="slide" transparent>
+          <View className="flex-1 bg-black/50 justify-end">
+            <View className="bg-white rounded-t-3xl h-2/3">
+              <View className="p-4 border-b border-slate-100 flex-row justify-between items-center">
+                <Text className="font-bold text-lg text-slate-800">Categorias</Text>
+                <TouchableOpacity onPress={() => setShowCategoryModal(false)} className="bg-slate-100 p-2 rounded-full">
+                  <X size={20} color="#64748b" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView contentContainerStyle={{ padding: 16 }}>
+                {currentCategories.map((cat, idx) => (
+                  <TouchableOpacity 
+                    key={`${cat.id}-${idx}`}
+                    onPress={() => { setCategory(cat); setShowCategoryModal(false); }}
+                    className="flex-row items-center gap-4 p-4 border-b border-slate-50"
+                  >
+                    <View className={`w-10 h-10 rounded-full ${cat.color} items-center justify-center`}>
+                       <Text className="font-bold">{cat.name.charAt(0)}</Text>
+                    </View>
+                    <Text className={`flex-1 font-bold text-base ${category?.id === cat.id ? 'text-slate-900' : 'text-slate-600'}`}>
+                      {cat.name}
+                    </Text>
+                    {category?.id === cat.id && <Check size={20} color={activeColor} />}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 
