@@ -1,0 +1,5 @@
+{
+  "name": "Finance Control",
+  "description": "A modern, mobile-first personal finance management app with dashboard, expense tracking, goals, and credit card control.",
+  "requestFramePermissions": []
+}
