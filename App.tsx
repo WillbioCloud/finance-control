@@ -1,17 +1,14 @@
+import "./global.css"; // <--- Importação OBRIGATÓRIA do CSS na v4
 import React, { useState, useEffect } from 'react';
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Image, StatusBar } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Image, StatusBar } from 'react-native';
+// Correção do erro de Deprecation: usar do safe-area-context
+import { SafeAreaView } from 'react-native-safe-area-context'; 
 import { LayoutDashboard, ArrowUpRight, CreditCard as CardIcon, Target, PlusCircle, User as UserIcon } from 'lucide-react-native';
-import { styled } from 'nativewind';
 import { storage } from './utils/storage';
-import { Transaction, TransactionType, PaymentMethod, Goal, CreditCard, UserProfile, Category } from './types';
+import { Transaction, TransactionType, Goal, CreditCard, UserProfile, Category } from './types';
 
-// Componentes (você precisará adaptar cada um individualmente, veja o exemplo do TransactionForm abaixo)
-// Por enquanto, vou renderizar apenas placeholders para o exemplo funcionar
+// Importe seu componente de formulário (certifique-se que ele também não usa 'styled')
 import TransactionForm from './components/TransactionForm'; 
-// Importe os outros componentes conforme for convertendo
-
-const StyledView = styled(View);
-const StyledText = styled(Text);
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -24,7 +21,6 @@ const App: React.FC = () => {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [cards, setCards] = useState<CreditCard[]>([]);
 
-  // Dados Mockados Iniciais (para evitar tela branca no primeiro uso)
   const initialProfile: UserProfile = {
     name: 'Sandra Oliveira',
     email: 'sandra@email.com',
@@ -33,43 +29,33 @@ const App: React.FC = () => {
     memberSince: 'Março 2024'
   };
 
-  // Carregar dados
   useEffect(() => {
     const loadData = async () => {
       const savedCats = await storage.getItem('fc_categories');
       const savedTrans = await storage.getItem('fc_transactions');
-      const savedGoals = await storage.getItem('fc_goals');
-      const savedCards = await storage.getItem('fc_cards');
-
       setCategories(savedCats || [
-        { id: '1', name: 'Alimentação', iconName: 'Utensils', color: 'bg-orange-100 text-orange-600', type: TransactionType.EXPENSE },
-        // ... outros padrões
+        { id: '1', name: 'Alimentação', iconName: 'Utensils', color: 'bg-orange-100 text-orange-600', type: 'EXPENSE' },
       ]);
       setTransactions(savedTrans || []);
-      setGoals(savedGoals || []);
-      setCards(savedCards || []);
       setLoading(false);
     };
     loadData();
   }, []);
 
-  // Salvar dados
-  useEffect(() => { if(!loading) storage.setItem('fc_transactions', transactions); }, [transactions, loading]);
-  
-  // Função para adicionar transação
   const addTransaction = (t: any) => {
     const newTransaction = { ...t, id: Date.now().toString() };
-    setTransactions(prev => [newTransaction, ...prev]);
+    const updated = [newTransaction, ...transactions];
+    setTransactions(updated);
+    storage.setItem('fc_transactions', updated);
     setShowAddModal(false);
   };
 
   if (loading) return <View className="flex-1 justify-center items-center"><Text>Carregando...</Text></View>;
 
   const renderContent = () => {
-    // Aqui você vai colocar os componentes convertidos
     switch(activeTab) {
-      case 'dashboard': return <View className="p-6"><Text className="text-xl font-bold">Dashboard (Em breve)</Text></View>;
-      case 'transactions': return <View className="p-6"><Text className="text-xl font-bold">Extrato (Em breve)</Text></View>;
+      case 'dashboard': return <View className="p-6"><Text className="text-xl font-bold text-slate-800">Dashboard (Em breve)</Text></View>;
+      case 'transactions': return <View className="p-6"><Text className="text-xl font-bold text-slate-800">Extrato (Em breve)</Text></View>;
       default: return <View className="p-6"><Text>Em construção</Text></View>;
     }
   };
@@ -80,7 +66,7 @@ const App: React.FC = () => {
       
       {/* Header */}
       {activeTab !== 'profile' && (
-        <View className="pt-4 px-6 flex-row justify-between items-center mb-4">
+        <View className="pt-2 px-6 flex-row justify-between items-center mb-4">
           <View>
             <Text className="text-slate-400 text-sm font-medium">Olá, {initialProfile.name.split(' ')[0]}</Text>
             <Text className="text-2xl font-bold text-slate-800">Finance Control</Text>
@@ -116,9 +102,9 @@ const App: React.FC = () => {
       {/* Modal */}
       {showAddModal && (
         <View className="absolute inset-0 bg-black/60 z-50 justify-end">
-          <View className="bg-white rounded-t-3xl p-6 h-[85%]">
+          <View className="bg-white rounded-t-[2.5rem] p-6 h-[85%]">
              <TouchableOpacity onPress={() => setShowAddModal(false)} className="w-12 h-1.5 bg-slate-200 rounded-full self-center mb-6" />
-             <ScrollView>
+             <ScrollView showsVerticalScrollIndicator={false}>
                <TransactionForm categories={categories} onAdd={addTransaction} onCancel={() => setShowAddModal(false)} />
              </ScrollView>
           </View>
