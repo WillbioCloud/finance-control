@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Modal, ActivityIndicator, Alert, Switch, KeyboardAvoidingView, Platform } from 'react-native';
 import { TransactionType, PaymentMethod, Category } from '../types';
 import { ChevronDown, Calendar, CreditCard, Wallet, Banknote, Sparkles, Check, ListChecks, X, Repeat, ArrowDownCircle, ArrowUpCircle } from 'lucide-react-native';
@@ -11,18 +11,19 @@ interface Props {
 }
 
 const TransactionForm: React.FC<Props> = ({ categories = [], onAdd, onCancel }) => {
-  // --- Estados Principais ---
+  // =======================
+  // ESTADOS
+  // =======================
   const [type, setType] = useState<TransactionType>(TransactionType.EXPENSE);
   const [amount, setAmount] = useState('0,00'); 
   const [rawValue, setRawValue] = useState(0); 
   const [description, setDescription] = useState('');
   const [date, setDate] = useState('');
   
-  // Estado simples para ID da categoria (Evita bugs de objeto)
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+  
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.DEBIT);
   
-  // IA & Extras
   const [detailsText, setDetailsText] = useState('');
   const [isProcessingIA, setIsProcessingIA] = useState(false);
   const [showDetailsInput, setShowDetailsInput] = useState(false);
@@ -31,37 +32,56 @@ const TransactionForm: React.FC<Props> = ({ categories = [], onAdd, onCancel }) 
   const [isRecurrent, setIsRecurrent] = useState(false);
   const [recurrenceType, setRecurrenceType] = useState<'fixed' | 'installments'>('fixed');
 
-  // --- LÓGICA COMPUTADA (Rápida e sem travamentos) ---
+  // =======================
+  // LISTAS DERIVADAS (MEMOIZADAS)
+  // =======================
+  const availableCategories = useMemo(() => {
+    return categories.filter(c => c.type === type);
+  }, [categories, type]);
+
+  const selectedCategory = useMemo(() => {
+    return categories.find(c => c.id === selectedCategoryId);
+  }, [categories, selectedCategoryId]);
+
+  // =======================
+  // EFEITOS
+  // =======================
   
-  // 1. Filtra as categorias disponíveis para o tipo atual
-  const availableCategories = categories.filter(c => c.type === type);
-
-  // 2. Encontra o objeto da categoria selecionada
-  const selectedCategory = categories.find(c => c.id === selectedCategoryId);
-
-  // --- EFEITOS (Automatização) ---
-
+  // Inicializa Data
   useEffect(() => {
-    // Inicializa data
     const today = new Date();
     setDate(today.toLocaleDateString('pt-BR'));
   }, []);
 
-  // GARANTIA: Sempre que mudar o Tipo (Despesa/Receita), seleciona a primeira categoria válida
+  // ✅ ALTERAÇÃO 3: Effect seguro (Sincronização de Categoria)
+  // Só roda quando a lista de categorias disponíveis muda (ou seja, quando o TIPO muda)
   useEffect(() => {
-    // Se a categoria selecionada não existe na lista atual (ex: mudou de Despesa p/ Receita)
-    const isValid = availableCategories.find(c => c.id === selectedCategoryId);
-    
-    if (!isValid) {
-      if (availableCategories.length > 0) {
-        setSelectedCategoryId(availableCategories[0].id); // Seleciona a primeira
-      } else {
-        setSelectedCategoryId(''); // Fica sem seleção se não houver categorias
+    if (!availableCategories.length) {
+      if (selectedCategoryId !== '') {
+        setSelectedCategoryId('');
       }
+      return;
     }
-  }, [type, availableCategories, selectedCategoryId]);
 
-  // --- HANDLERS ---
+    const exists = availableCategories.some(
+      c => c.id === selectedCategoryId
+    );
+
+    if (!exists) {
+      setSelectedCategoryId(availableCategories[0].id);
+    }
+  }, [availableCategories]); // Dependência EXATA para evitar loops
+
+  // =======================
+  // HANDLERS
+  // =======================
+
+  // ✅ ALTERAÇÃO 1: Handler de Troca de Tipo
+  const handleChangeType = (newType: TransactionType) => {
+    if (newType === type) return;
+    setType(newType);
+    setSelectedCategoryId(''); // Reseta para forçar o useEffect a selecionar a primeira
+  };
 
   const handleAmountChange = (text: string) => {
     const cleanValue = text.replace(/\D/g, '');
@@ -82,19 +102,30 @@ const TransactionForm: React.FC<Props> = ({ categories = [], onAdd, onCancel }) 
   const processDetailsWithIA = async () => {
     if (!detailsText.trim()) return null;
     setIsProcessingIA(true);
+
     try {
       const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
-      if (!apiKey) return null;
+      if (!apiKey) throw new Error("Chave de API não configurada");
 
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
-      const prompt = `Extraia itens de compra do texto: "${detailsText}". Retorne JSON: [{"item": "Nome", "amount": 0.00, "quantity": "1"}]. Apenas JSON.`;
-      
+
+      const prompt = `
+        Analise o texto: "${detailsText}".
+        Extraia os itens em JSON.
+        Formato: [{"item": "Nome", "amount": 0.00, "quantity": "1 un"}]
+        Responda APENAS JSON puro.
+      `;
+
       const result = await model.generateContent(prompt);
-      let text = result.response.text().replace(/```json/g, '').replace(/```/g, '').trim();
+      let text = result.response.text();
+      text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+      
       return JSON.parse(text);
-    } catch (error) {
-      Alert.alert("Erro IA", "Não foi possível processar.");
+
+    } catch (error: any) {
+      console.error("Erro IA:", error);
+      Alert.alert("Aviso IA", "Não foi possível processar automaticamente.");
       return null;
     } finally {
       setIsProcessingIA(false);
@@ -102,7 +133,7 @@ const TransactionForm: React.FC<Props> = ({ categories = [], onAdd, onCancel }) 
   };
 
   const handleSubmit = async () => {
-    if (rawValue <= 0 || !description) {
+    if (rawValue <= 0 || !description.trim()) {
       Alert.alert("Atenção", "Preencha valor e descrição.");
       return;
     }
@@ -127,9 +158,8 @@ const TransactionForm: React.FC<Props> = ({ categories = [], onAdd, onCancel }) 
     onAdd({
       amount: rawValue,
       description,
-      // Usa o nome da categoria encontrada ou 'Geral' se der ruim
       category: selectedCategory?.name || 'Geral', 
-      type, // ENVIA O TIPO CORRETO (INCOME ou EXPENSE)
+      type,
       date: formattedDate,
       paymentMethod,
       isRecurrent,
@@ -138,22 +168,24 @@ const TransactionForm: React.FC<Props> = ({ categories = [], onAdd, onCancel }) 
     });
   };
 
-  // Cores dinâmicas simples
+  // =======================
+  // RENDER
+  // =======================
   const isExpense = type === TransactionType.EXPENSE;
-  const activeColor = isExpense ? '#ef4444' : '#10b981';
   const activeBg = isExpense ? 'bg-red-500' : 'bg-emerald-500';
   const activeLightBg = isExpense ? 'bg-red-50' : 'bg-emerald-50';
   const activeBorder = isExpense ? 'border-red-200' : 'border-emerald-200';
   const activeText = isExpense ? 'text-red-500' : 'text-emerald-500';
+  const activeColor = isExpense ? '#ef4444' : '#10b981';
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
       <View className="flex-1 pb-6">
         
-        {/* --- SELETOR DE TIPO (ABAS) --- */}
+        {/* ✅ ALTERAÇÃO 2: Botões usando o novo Handler */}
         <View className="flex-row mb-6 bg-slate-100 p-1.5 rounded-2xl">
           <TouchableOpacity 
-            onPress={() => setType(TransactionType.EXPENSE)}
+            onPress={() => handleChangeType(TransactionType.EXPENSE)}
             className={`flex-1 flex-row items-center justify-center gap-2 py-3.5 rounded-xl ${isExpense ? 'bg-white shadow-sm' : ''}`}
           >
             <ArrowDownCircle size={20} color={isExpense ? '#ef4444' : '#94a3b8'} />
@@ -161,7 +193,7 @@ const TransactionForm: React.FC<Props> = ({ categories = [], onAdd, onCancel }) 
           </TouchableOpacity>
           
           <TouchableOpacity 
-            onPress={() => setType(TransactionType.INCOME)}
+            onPress={() => handleChangeType(TransactionType.INCOME)}
             className={`flex-1 flex-row items-center justify-center gap-2 py-3.5 rounded-xl ${!isExpense ? 'bg-white shadow-sm' : ''}`}
           >
             <ArrowUpCircle size={20} color={!isExpense ? '#10b981' : '#94a3b8'} />
@@ -169,7 +201,7 @@ const TransactionForm: React.FC<Props> = ({ categories = [], onAdd, onCancel }) 
           </TouchableOpacity>
         </View>
 
-        {/* --- VALOR --- */}
+        {/* VALOR */}
         <View className="items-center mb-8">
           <Text className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">
              {isExpense ? 'Valor a Pagar' : 'Valor a Receber'}
@@ -342,7 +374,13 @@ const TransactionForm: React.FC<Props> = ({ categories = [], onAdd, onCancel }) 
                   ))
                 ) : (
                    <View className="items-center justify-center py-10 opacity-50">
-                      <Text className="text-slate-400 text-center font-bold">Sem categorias para {isExpense ? 'Despesa' : 'Receita'}!</Text>
+                      <ListChecks size={48} color="#94a3b8" />
+                      <Text className="text-slate-400 text-center font-bold mt-4">
+                        Nenhuma categoria encontrada!
+                      </Text>
+                      <Text className="text-slate-400 text-center text-xs mt-1">
+                        Crie uma categoria de {isExpense ? 'Despesa' : 'Receita'} nas configurações.
+                      </Text>
                    </View>
                 )}
               </ScrollView>
