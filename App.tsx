@@ -18,19 +18,16 @@ import { Transaction, Category, Goal, CreditCard as CardType, UserProfile } from
 import { INITIAL_CATEGORIES, INITIAL_CARDS, INITIAL_PROFILE } from './constants';
 
 export default function App() {
-  // Estados Globais
   const [activeTab, setActiveTab] = useState('home');
   const [showAddModal, setShowAddModal] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Dados
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [cards, setCards] = useState<CardType[]>(INITIAL_CARDS);
   const [userProfile, setUserProfile] = useState<UserProfile>(INITIAL_PROFILE);
 
-  // Carregar Dados
   useEffect(() => {
     const init = async () => {
       const data = await loadData();
@@ -46,7 +43,6 @@ export default function App() {
     init();
   }, []);
 
-  // Salvar Dados
   useEffect(() => {
     if (!loading) {
       saveData({ transactions, categories, goals, cards, userProfile });
@@ -64,7 +60,6 @@ export default function App() {
     setTransactions(transactions.filter(t => t.id !== id));
   };
 
-  // Renderização da Tela Principal
   const renderContent = () => {
     if (showAddModal) {
       return (
@@ -96,22 +91,28 @@ export default function App() {
       case 'cards':
         return <CardsManager cards={cards} onUpdate={setCards} />;
       case 'goals':
-        return <GoalsManager goals={goals} onUpdate={setGoals} />;
+        // ATUALIZAÇÃO: Passando transações e categorias para a IA analisar
+        return (
+          <GoalsManager 
+            goals={goals} 
+            onUpdate={setGoals} 
+            transactions={transactions} 
+            categories={categories} 
+          />
+        );
       case 'profile':
         return (
           <Profile 
             profile={userProfile} 
             onUpdateProfile={setUserProfile} 
-            onNavigate={(screen) => {
-               if (screen === 'categories') setActiveTab('categories');
-            }}
+            onNavigate={(screen) => setActiveTab(screen)}
           />
         );
       case 'categories':
         return (
           <CategoryManager 
             categories={categories} 
-            onUpdateCategories={setCategories} 
+            onUpdate={setCategories} 
             onBack={() => setActiveTab('profile')} 
           />
         );
@@ -120,7 +121,6 @@ export default function App() {
     }
   };
 
-  // Menu Inferior
   const renderBottomMenu = () => {
     if (showAddModal || activeTab === 'categories') return null;
 
@@ -184,45 +184,25 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc', // slate-50
-    paddingTop: Platform.OS === 'android' ? 25 : 0,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
+  container: { flex: 1, backgroundColor: '#f8fafc', paddingTop: Platform.OS === 'android' ? 25 : 0 },
+  content: { flex: 1, paddingHorizontal: 16 },
   bottomBar: {
     flexDirection: 'row',
     backgroundColor: '#ffffff',
     paddingVertical: 12,
     paddingHorizontal: 8,
     borderTopWidth: 1,
-    borderTopColor: '#f1f5f9', // slate-100
+    borderTopColor: '#f1f5f9',
     justifyContent: 'space-around',
-    alignItems: 'flex-end', // Alinha itens na base para o botão Add flutuar
+    alignItems: 'flex-end',
     height: 80,
     paddingBottom: Platform.OS === 'ios' ? 20 : 12,
   },
-  tabItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-  },
-  tabLabel: {
-    fontSize: 10,
-    marginTop: 4,
-    fontWeight: '600',
-  },
-  addButtonContainer: {
-    top: -20, // Faz o botão flutuar
-    justifyContent: 'center',
-    alignItems: 'center',
-    flex: 1,
-  },
+  tabItem: { alignItems: 'center', justifyContent: 'center', flex: 1 },
+  tabLabel: { fontSize: 10, marginTop: 4, fontWeight: '600' },
+  addButtonContainer: { top: -20, justifyContent: 'center', alignItems: 'center', flex: 1 },
   addButton: {
-    backgroundColor: '#10b981', // emerald-500
+    backgroundColor: '#10b981',
     width: 56,
     height: 56,
     borderRadius: 28,

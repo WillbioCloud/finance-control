@@ -1,14 +1,27 @@
 import React, { useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { Transaction, Category, TransactionType } from '../types';
+import { Transaction, Category, TransactionType, TransactionDetail } from '../types';
 import { TrendingUp, TrendingDown, Trash2, ShoppingBag, ChevronUp, DollarSign } from 'lucide-react-native';
 
-// --- SUBCOMPONENTE DO ITEM (Agora com expansão) ---
+// --- HELPER PARA AGRUPAR POR CATEGORIA ---
+const groupDetailsByCategory = (details: TransactionDetail[] = []) => {
+  const groups: Record<string, TransactionDetail[]> = {};
+  details.forEach(item => {
+    const cat = item.category || 'Geral';
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push(item);
+  });
+  return groups;
+};
+
+// --- SUBCOMPONENTE DO ITEM ---
 export const TransactionItem = ({ t, onDelete, cat }: { t: Transaction, onDelete: (id: string) => void, cat?: Category }) => {
   const [expanded, setExpanded] = useState(false);
   const isExpense = t.type === TransactionType.EXPENSE;
   const hasDetails = t.details && t.details.length > 0;
   
+  const groupedDetails = hasDetails ? groupDetailsByCategory(t.details) : {};
+
   const handleDelete = () => {
     Alert.alert(
       "Excluir",
@@ -34,19 +47,15 @@ export const TransactionItem = ({ t, onDelete, cat }: { t: Transaction, onDelete
         style={styles.itemContainer}
       >
         <View style={styles.leftContent}>
-          {/* Ícone */}
           <View style={[styles.iconContainer, { backgroundColor: cat?.color || '#e2e8f0' }]}>
             {isExpense ? <TrendingDown size={18} color="#fff" /> : <TrendingUp size={18} color="#fff" />}
           </View>
           
-          {/* Textos */}
           <View style={styles.textContainer}>
             <Text style={styles.description} numberOfLines={1}>{t.description}</Text>
             
             <View style={styles.categoryRow}>
               <Text style={styles.category}>{cat?.name || t.category}</Text>
-              
-              {/* Badge indicando que tem detalhes */}
               {hasDetails && (
                 <View style={styles.detailsBadge}>
                   <ShoppingBag size={10} color="#64748b" />
@@ -71,25 +80,36 @@ export const TransactionItem = ({ t, onDelete, cat }: { t: Transaction, onDelete
         </View>
       </TouchableOpacity>
 
-      {/* --- LISTA DE DETALHES (Expandível) --- */}
+      {/* --- LISTA DE DETALHES AGRUPADA --- */}
       {expanded && hasDetails && (
         <View style={styles.detailsContainer}>
           <View style={styles.detailsHeader}>
-            <Text style={styles.detailsTitle}>ITENS DA COMPRA</Text>
+            <Text style={styles.detailsTitle}>ITENS DA NOTA</Text>
             <TouchableOpacity onPress={() => setExpanded(false)}>
                <ChevronUp size={14} color="#94a3b8" />
             </TouchableOpacity>
           </View>
           
-          {t.details?.map((item, index) => (
-            <View key={index} style={styles.detailRow}>
-              <Text style={styles.detailItemText}>
-                {item.quantity && item.quantity !== "1" ? <Text style={styles.qtyText}>{item.quantity}x </Text> : ''}
-                {item.item}
-              </Text>
-              <Text style={styles.detailAmountText}>
-                R$ {item.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </Text>
+          {Object.entries(groupedDetails).map(([category, items], idx) => (
+            <View key={idx} style={styles.groupContainer}>
+              <Text style={styles.groupTitle}>{category}</Text>
+              {items.map((item, index) => (
+                <View key={index} style={styles.detailRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.detailItemText}>{item.item}</Text>
+                    {item.unitPrice && item.quantity ? (
+                      <Text style={styles.calcText}>
+                        {item.quantity} x R$ {item.unitPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </Text>
+                    ) : item.quantity ? (
+                      <Text style={styles.calcText}>{item.quantity}</Text>
+                    ) : null}
+                  </View>
+                  <Text style={styles.detailAmountText}>
+                    R$ {item.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </Text>
+                </View>
+              ))}
             </View>
           ))}
         </View>
@@ -141,31 +161,16 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: 'bold', color: '#1e293b' },
   subtitle: { color: '#64748b', fontSize: 14 },
   
-  // Card Principal
-  cardWrapper: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#f1f5f9',
-    marginBottom: 8,
-    overflow: 'hidden', // Importante para o conteúdo expandido
-  },
-  itemContainer: {
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
+  cardWrapper: { backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: '#f1f5f9', marginBottom: 8, overflow: 'hidden' },
+  itemContainer: { padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   leftContent: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   iconContainer: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   textContainer: { flex: 1 },
   description: { fontWeight: 'bold', color: '#1e293b', fontSize: 14 },
-  
   categoryRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
   category: { color: '#64748b', fontSize: 12 },
   detailsBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#f1f5f9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   detailsBadgeText: { fontSize: 10, color: '#64748b', fontWeight: 'bold' },
-
   rightActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   rightContent: { alignItems: 'flex-end' },
   amount: { fontWeight: 'bold', fontSize: 14 },
@@ -173,20 +178,18 @@ const styles = StyleSheet.create({
   deleteButton: { padding: 4 },
 
   // Área de Detalhes
-  detailsContainer: {
-    backgroundColor: '#f8fafc',
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
-  },
+  detailsContainer: { backgroundColor: '#f8fafc', padding: 16, borderTopWidth: 1, borderTopColor: '#f1f5f9' },
   detailsHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
   detailsTitle: { fontSize: 10, fontWeight: 'bold', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1 },
-  detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
-  detailItemText: { fontSize: 13, color: '#334155', flex: 1 },
-  qtyText: { fontWeight: 'bold', color: '#64748b' },
-  detailAmountText: { fontSize: 13, fontWeight: '600', color: '#475569' },
+  
+  groupContainer: { marginBottom: 16 },
+  groupTitle: { fontSize: 11, fontWeight: 'bold', color: '#6366f1', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
+  detailItemText: { fontSize: 13, color: '#334155', fontWeight: '500' },
+  calcText: { fontSize: 11, color: '#64748b', marginTop: 1 },
+  detailAmountText: { fontSize: 13, fontWeight: 'bold', color: '#1e293b' },
 
-  // Empty State
   emptyState: { alignItems: 'center', justifyContent: 'center', marginTop: 100, gap: 16 },
   emptyText: { color: '#94a3b8', fontSize: 16 }
 });

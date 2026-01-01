@@ -13,6 +13,8 @@ export interface TransactionDetail {
   item: string;
   amount: number;
   quantity?: string;
+  unitPrice?: number;
+  category?: string;
 }
 
 export interface Category {
@@ -32,7 +34,7 @@ export interface Transaction {
   date: string;
   paymentMethod: PaymentMethod;
   isRecurrent: boolean;
-  recurrenceType?: 'fixed' | 'installments'; // Adicionado para suportar a nova função
+  recurrenceType?: 'fixed' | 'installments';
   details?: TransactionDetail[];
 }
 
@@ -42,7 +44,8 @@ export interface Goal {
   targetAmount: number;
   currentAmount: number;
   deadline?: string;
-  icon: string;
+  icon?: string;
+  monthlyAllocation?: number; // NOVO: Quanto pretendo guardar por mês
 }
 
 export interface CreditCard {
