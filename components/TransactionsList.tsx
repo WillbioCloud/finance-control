@@ -1,144 +1,194 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
-import { Transaction, TransactionType, Category } from '../types';
-import { Trash2, Tag, ChevronDown, ChevronUp, Sparkles, ShoppingBag } from 'lucide-react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { Transaction, Category, TransactionType } from '../types';
+import { TrendingUp, TrendingDown, Trash2, ShoppingBag, ChevronUp, DollarSign } from 'lucide-react-native';
 
-// Componente Individual de Transação
-export const TransactionItem = ({ t, onDelete, cat }: { t: Transaction, onDelete: (id: string) => void, cat: Category | undefined }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+// --- SUBCOMPONENTE DO ITEM (Agora com expansão) ---
+export const TransactionItem = ({ t, onDelete, cat }: { t: Transaction, onDelete: (id: string) => void, cat?: Category }) => {
+  const [expanded, setExpanded] = useState(false);
+  const isExpense = t.type === TransactionType.EXPENSE;
+  const hasDetails = t.details && t.details.length > 0;
   
-  // Verifica se tem detalhes salvos
-  const hasDetails = t.details && Array.isArray(t.details) && t.details.length > 0;
-
   const handleDelete = () => {
     Alert.alert(
       "Excluir",
-      "Tem certeza que deseja excluir esta transação?",
+      "Tem certeza que deseja apagar esta transação?",
       [
         { text: "Cancelar", style: "cancel" },
-        { text: "Excluir", style: "destructive", onPress: () => onDelete(t.id) }
+        { text: "Apagar", style: "destructive", onPress: () => onDelete(t.id) }
       ]
     );
   };
 
+  const handlePress = () => {
+    if (hasDetails) {
+      setExpanded(!expanded);
+    }
+  };
+
   return (
-    <View className="bg-white rounded-3xl border border-slate-100 overflow-hidden mb-2 shadow-sm">
+    <View style={styles.cardWrapper}>
       <TouchableOpacity 
-        className="p-4 flex-row items-center justify-between"
-        onPress={() => hasDetails && setIsExpanded(!isExpanded)}
+        onPress={handlePress} 
         activeOpacity={hasDetails ? 0.7 : 1}
+        style={styles.itemContainer}
       >
-        <View className="flex-row items-center gap-4 flex-1">
-          {/* Ícone da Categoria */}
-          <View className={`w-12 h-12 rounded-2xl items-center justify-center ${cat?.color || 'bg-slate-100'}`}>
-             <Text className="font-bold text-lg">{cat?.name.charAt(0) || '?'}</Text>
+        <View style={styles.leftContent}>
+          {/* Ícone */}
+          <View style={[styles.iconContainer, { backgroundColor: cat?.color || '#e2e8f0' }]}>
+            {isExpense ? <TrendingDown size={18} color="#fff" /> : <TrendingUp size={18} color="#fff" />}
           </View>
           
-          <View className="flex-1">
-            <View className="flex-row items-center gap-1.5">
-              <Text className="font-bold text-slate-800 text-sm" numberOfLines={1}>{t.description}</Text>
-              {/* Ícone Mágico se tiver IA */}
+          {/* Textos */}
+          <View style={styles.textContainer}>
+            <Text style={styles.description} numberOfLines={1}>{t.description}</Text>
+            
+            <View style={styles.categoryRow}>
+              <Text style={styles.category}>{cat?.name || t.category}</Text>
+              
+              {/* Badge indicando que tem detalhes */}
               {hasDetails && (
-                <View className="bg-purple-100 px-1.5 py-0.5 rounded-md flex-row items-center gap-0.5">
-                  <Sparkles size={10} color="#9333ea" />
-                  <Text className="text-[8px] font-bold text-purple-700">IA</Text>
+                <View style={styles.detailsBadge}>
+                  <ShoppingBag size={10} color="#64748b" />
+                  <Text style={styles.detailsBadgeText}>Ver itens</Text>
                 </View>
               )}
             </View>
-            <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{t.category}</Text>
           </View>
         </View>
 
-        <View className="items-end gap-1 ml-2">
-           <Text className={`font-bold text-sm ${t.type === TransactionType.INCOME ? 'text-emerald-500' : 'text-slate-800'}`}>
-              {t.type === TransactionType.INCOME ? '+' : '-'} R$ {t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-           </Text>
-           <View className="flex-row items-center gap-3">
-             {hasDetails && (
-                isExpanded ? <ChevronUp size={14} color="#94a3b8" /> : <ChevronDown size={14} color="#94a3b8" />
-             )}
-             <TouchableOpacity onPress={handleDelete} className="p-1">
-               <Trash2 size={16} color="#cbd5e1" />
-             </TouchableOpacity>
-           </View>
+        <View style={styles.rightActions}>
+          <View style={styles.rightContent}>
+            <Text style={[styles.amount, { color: isExpense ? '#ef4444' : '#10b981' }]}>
+              {isExpense ? '-' : '+'} R$ {t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </Text>
+            <Text style={styles.date}>{t.date.split('-').reverse().join('/')}</Text>
+          </View>
+
+          <TouchableOpacity onPress={handleDelete} style={styles.deleteButton}>
+            <Trash2 size={18} color="#cbd5e1" />
+          </TouchableOpacity>
         </View>
       </TouchableOpacity>
 
-      {/* Detalhes Expansíveis da IA */}
-      {isExpanded && hasDetails && (
-        <View className="px-4 pb-4 pt-0">
-          <View className="h-[1px] bg-slate-100 mb-3 mx-2" />
-          <View className="bg-slate-50 rounded-2xl p-3 border border-slate-100">
-            <View className="flex-row items-center gap-2 mb-3">
-               <ShoppingBag size={12} color="#64748b" />
-               <Text className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Itens Identificados pela IA</Text>
-            </View>
-            
-            <View className="gap-2">
-              {t.details?.map((item, idx) => (
-                <View key={idx} className="flex-row justify-between items-start border-b border-dashed border-slate-200 pb-2 last:border-0 last:pb-0">
-                   <Text className="text-xs text-slate-600 font-medium flex-1 mr-2">
-                     {item.quantity && <Text className="font-bold text-slate-400">{item.quantity}x </Text>}
-                     {item.item}
-                   </Text>
-                   <Text className="text-xs font-bold text-slate-700">R$ {item.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</Text>
-                </View>
-              ))}
-            </View>
-            
-            {/* Total dos Itens vs Total da Transação */}
-            <View className="mt-3 pt-2 border-t border-slate-200 flex-row justify-between items-center">
-                <Text className="text-[10px] text-slate-400">Total dos itens</Text>
-                <Text className="text-[10px] font-bold text-slate-500">
-                   R$ {t.details?.reduce((acc, i) => acc + i.amount, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </Text>
-            </View>
+      {/* --- LISTA DE DETALHES (Expandível) --- */}
+      {expanded && hasDetails && (
+        <View style={styles.detailsContainer}>
+          <View style={styles.detailsHeader}>
+            <Text style={styles.detailsTitle}>ITENS DA COMPRA</Text>
+            <TouchableOpacity onPress={() => setExpanded(false)}>
+               <ChevronUp size={14} color="#94a3b8" />
+            </TouchableOpacity>
           </View>
+          
+          {t.details?.map((item, index) => (
+            <View key={index} style={styles.detailRow}>
+              <Text style={styles.detailItemText}>
+                {item.quantity && item.quantity !== "1" ? <Text style={styles.qtyText}>{item.quantity}x </Text> : ''}
+                {item.item}
+              </Text>
+              <Text style={styles.detailAmountText}>
+                R$ {item.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </Text>
+            </View>
+          ))}
         </View>
       )}
     </View>
   );
 };
 
-const TransactionsList: React.FC<any> = ({ transactions, onDelete, categories }) => {
-  // Agrupar por data
-  const grouped = transactions.reduce((acc: any, t: Transaction) => {
-    const date = t.date; 
-    if (!acc[date]) acc[date] = [];
-    acc[date].push(t);
-    return acc;
-  }, {});
+interface Props {
+  transactions: Transaction[];
+  categories: Category[];
+  onDelete: (id: string) => void;
+}
 
-  const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
-
+const TransactionsList: React.FC<Props> = ({ transactions, categories, onDelete }) => {
   return (
-    <View className="space-y-6 pb-20">
-      <Text className="font-bold text-xl text-slate-800 mb-2">Seu Extrato</Text>
-      
-      {sortedDates.length > 0 ? sortedDates.map(date => (
-        <View key={date} className="mb-4">
-          <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 pl-1">
-            {new Date(date + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', weekday: 'short' })}
-          </Text>
-          <View className="gap-2">
-            {grouped[date].map((t: Transaction) => (
-              <TransactionItem 
-                key={t.id} 
-                t={t} 
-                onDelete={onDelete} 
-                cat={categories.find((c: any) => c.name === t.category)} 
-              />
-            ))}
+    <View style={styles.listContainer}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Extrato Completo</Text>
+        <Text style={styles.subtitle}>{transactions.length} registros</Text>
+      </View>
+
+      <FlatList
+        data={transactions}
+        keyExtractor={item => item.id}
+        renderItem={({ item }) => (
+          <TransactionItem 
+            t={item} 
+            onDelete={onDelete} 
+            cat={categories.find(c => c.name === item.category)} 
+          />
+        )}
+        contentContainerStyle={{ paddingBottom: 24, gap: 10 }}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <DollarSign size={48} color="#cbd5e1" />
+            <Text style={styles.emptyText}>Nenhuma transação encontrada.</Text>
           </View>
-        </View>
-      )) : (
-        <View className="items-center justify-center py-20 bg-white rounded-[2.5rem] border border-dashed border-slate-200">
-          <Tag size={48} color="#cbd5e1" />
-          <Text className="text-slate-400 text-sm italic mt-4">Nenhuma transação encontrada.</Text>
-        </View>
-      )}
+        }
+      />
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  listContainer: { flex: 1, paddingTop: 16 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  title: { fontSize: 20, fontWeight: 'bold', color: '#1e293b' },
+  subtitle: { color: '#64748b', fontSize: 14 },
+  
+  // Card Principal
+  cardWrapper: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    marginBottom: 8,
+    overflow: 'hidden', // Importante para o conteúdo expandido
+  },
+  itemContainer: {
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  leftContent: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  iconContainer: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  textContainer: { flex: 1 },
+  description: { fontWeight: 'bold', color: '#1e293b', fontSize: 14 },
+  
+  categoryRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+  category: { color: '#64748b', fontSize: 12 },
+  detailsBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#f1f5f9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  detailsBadgeText: { fontSize: 10, color: '#64748b', fontWeight: 'bold' },
+
+  rightActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  rightContent: { alignItems: 'flex-end' },
+  amount: { fontWeight: 'bold', fontSize: 14 },
+  date: { color: '#94a3b8', fontSize: 10, fontWeight: '600' },
+  deleteButton: { padding: 4 },
+
+  // Área de Detalhes
+  detailsContainer: {
+    backgroundColor: '#f8fafc',
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+  },
+  detailsHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  detailsTitle: { fontSize: 10, fontWeight: 'bold', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1 },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
+  detailItemText: { fontSize: 13, color: '#334155', flex: 1 },
+  qtyText: { fontWeight: 'bold', color: '#64748b' },
+  detailAmountText: { fontSize: 13, fontWeight: '600', color: '#475569' },
+
+  // Empty State
+  emptyState: { alignItems: 'center', justifyContent: 'center', marginTop: 100, gap: 16 },
+  emptyText: { color: '#94a3b8', fontSize: 16 }
+});
 
 export default TransactionsList;

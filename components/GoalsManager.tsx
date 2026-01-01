@@ -1,19 +1,16 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Modal, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Modal, Alert, StyleSheet } from 'react-native';
 import { Goal } from '../types';
-import { Target, Plus, Trophy, Calendar, DollarSign, X, TrendingUp } from 'lucide-react-native';
+import { Target, Plus, Trophy, X } from 'lucide-react-native';
 
 interface Props {
   goals: Goal[];
-  onAddGoal: (goal: Goal) => void;
-  onUpdateGoal: (goal: Goal) => void;
-  onDeleteGoal: (id: string) => void;
+  onUpdate: (goals: Goal[]) => void;
 }
 
-const GoalsManager: React.FC<Props> = ({ goals, onAddGoal, onUpdateGoal, onDeleteGoal }) => {
+const GoalsManager: React.FC<Props> = ({ goals, onUpdate }) => {
   const [showModal, setShowModal] = useState(false);
   
-  // Estados do Formulário
   const [name, setName] = useState('');
   const [targetAmount, setTargetAmount] = useState('');
   const [deadline, setDeadline] = useState('');
@@ -31,11 +28,21 @@ const GoalsManager: React.FC<Props> = ({ goals, onAddGoal, onUpdateGoal, onDelet
       targetAmount: parseFloat(targetAmount.replace(',', '.')),
       currentAmount: parseFloat(initialAmount.replace(',', '.') || '0'),
       deadline,
+      icon: 'Target'
     };
 
-    onAddGoal(newGoal);
+    onUpdate([...goals, newGoal]);
     setShowModal(false);
     resetForm();
+  };
+
+  const handleDelete = (id: string) => {
+    onUpdate(goals.filter(g => g.id !== id));
+  };
+
+  const handleUpdateGoal = (updatedGoal: Goal) => {
+    const newGoals = goals.map(g => g.id === updatedGoal.id ? updatedGoal : g);
+    onUpdate(newGoals);
   };
 
   const resetForm = () => {
@@ -56,34 +63,32 @@ const GoalsManager: React.FC<Props> = ({ goals, onAddGoal, onUpdateGoal, onDelet
           onPress: (val) => {
             const amount = parseFloat(val?.replace(',', '.') || '0');
             if (amount > 0) {
-              onUpdateGoal({ ...goal, currentAmount: goal.currentAmount + amount });
+              handleUpdateGoal({ ...goal, currentAmount: goal.currentAmount + amount });
             }
           }
         }
       ],
       "plain-text",
-      "0,00" // Placeholder
+      "0,00"
     );
   };
 
   return (
-    <View className="pb-24">
-      {/* Cabeçalho */}
-      <View className="flex-row justify-between items-center mb-6">
+    <View style={styles.container}>
+      <View style={styles.header}>
         <View>
-          <Text className="text-xl font-bold text-slate-800">Minhas Metas</Text>
-          <Text className="text-slate-400 text-xs">Acompanhe seus sonhos</Text>
+          <Text style={styles.title}>Minhas Metas</Text>
+          <Text style={styles.subtitle}>Acompanhe seus sonhos</Text>
         </View>
         <TouchableOpacity 
           onPress={() => setShowModal(true)}
-          className="bg-emerald-500 p-3 rounded-full shadow-sm"
+          style={styles.addButton}
         >
           <Plus size={24} color="#FFF" />
         </TouchableOpacity>
       </View>
 
-      {/* Lista de Metas */}
-      <View className="gap-4">
+      <ScrollView contentContainerStyle={styles.list}>
         {goals.map(goal => {
           const progress = Math.min((goal.currentAmount / goal.targetAmount) * 100, 100);
           const isCompleted = progress >= 100;
@@ -91,42 +96,47 @@ const GoalsManager: React.FC<Props> = ({ goals, onAddGoal, onUpdateGoal, onDelet
           return (
             <TouchableOpacity 
               key={goal.id} 
-              onLongPress={() => Alert.alert("Excluir", "Deseja excluir esta meta?", [{text: "Cancelar"}, {text: "Excluir", onPress: () => onDeleteGoal(goal.id)}])}
-              className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden"
+              onLongPress={() => Alert.alert("Excluir", "Deseja excluir esta meta?", [{text: "Cancelar"}, {text: "Excluir", onPress: () => handleDelete(goal.id)}])}
+              style={styles.card}
             >
-              {/* Barra de Progresso de Fundo */}
-              <View className="absolute bottom-0 left-0 h-1.5 bg-slate-100 w-full" />
+              {/* Barra de Progresso Fundo */}
+              <View style={styles.progressBgAbs} />
               <View 
-                className={`absolute bottom-0 left-0 h-1.5 ${isCompleted ? 'bg-emerald-500' : 'bg-blue-500'}`} 
-                style={{ width: `${progress}%` }} 
+                style={[
+                  styles.progressFillAbs, 
+                  { 
+                    width: `${progress}%`,
+                    backgroundColor: isCompleted ? '#10b981' : '#3b82f6' 
+                  }
+                ]} 
               />
 
-              <View className="flex-row justify-between items-start mb-4">
-                <View className="flex-row items-center gap-3">
-                  <View className={`p-3 rounded-2xl ${isCompleted ? 'bg-emerald-100' : 'bg-blue-50'}`}>
+              <View style={styles.cardTop}>
+                <View style={styles.cardIconRow}>
+                  <View style={[styles.iconBox, { backgroundColor: isCompleted ? '#ecfdf5' : '#eff6ff' }]}>
                     {isCompleted ? <Trophy size={20} color="#10b981" /> : <Target size={20} color="#3b82f6" />}
                   </View>
                   <View>
-                    <Text className="font-bold text-slate-800 text-lg">{goal.name}</Text>
-                    <Text className="text-xs text-slate-400 font-medium">{goal.deadline}</Text>
+                    <Text style={styles.cardName}>{goal.name}</Text>
+                    <Text style={styles.cardDate}>{goal.deadline}</Text>
                   </View>
                 </View>
-                <View className="items-end">
-                   <Text className="text-xs font-bold text-slate-400 uppercase">Faltam</Text>
-                   <Text className="font-bold text-slate-800">
+                <View style={styles.alignEnd}>
+                   <Text style={styles.missingLabel}>FALTAM</Text>
+                   <Text style={styles.missingValue}>
                      R$ {Math.max(0, goal.targetAmount - goal.currentAmount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                    </Text>
                 </View>
               </View>
 
-              <View className="flex-row justify-between items-end">
+              <View style={styles.cardBottom}>
                  <View>
-                    <Text className="text-slate-400 text-[10px] uppercase font-bold mb-1">Progresso</Text>
-                    <View className="flex-row items-baseline gap-1">
-                      <Text className={`text-2xl font-bold ${isCompleted ? 'text-emerald-600' : 'text-blue-600'}`}>
+                    <Text style={styles.progressLabel}>PROGRESSO</Text>
+                    <View style={styles.progressRow}>
+                      <Text style={[styles.progressPerc, { color: isCompleted ? '#059669' : '#2563eb' }]}>
                         {progress.toFixed(0)}%
                       </Text>
-                      <Text className="text-slate-400 text-xs font-medium">
+                      <Text style={styles.targetText}>
                         de R$ {goal.targetAmount.toLocaleString()}
                       </Text>
                     </View>
@@ -135,10 +145,10 @@ const GoalsManager: React.FC<Props> = ({ goals, onAddGoal, onUpdateGoal, onDelet
                  {!isCompleted && (
                    <TouchableOpacity 
                      onPress={() => handleAddMoney(goal)}
-                     className="bg-slate-900 px-4 py-2 rounded-xl flex-row items-center gap-2"
+                     style={styles.depositButton}
                    >
                      <Plus size={14} color="white" />
-                     <Text className="text-white text-xs font-bold">Depositar</Text>
+                     <Text style={styles.depositText}>Depositar</Text>
                    </TouchableOpacity>
                  )}
               </View>
@@ -147,70 +157,51 @@ const GoalsManager: React.FC<Props> = ({ goals, onAddGoal, onUpdateGoal, onDelet
         })}
 
         {goals.length === 0 && (
-          <View className="items-center justify-center py-10 bg-slate-50/50 rounded-3xl border-2 border-dashed border-slate-200">
+          <View style={styles.emptyState}>
             <Target size={48} color="#cbd5e1" />
-            <Text className="text-slate-400 font-medium mt-4">Nenhuma meta criada</Text>
+            <Text style={styles.emptyText}>Nenhuma meta criada</Text>
             <TouchableOpacity onPress={() => setShowModal(true)}>
-              <Text className="text-emerald-500 font-bold mt-2">Criar minha primeira meta</Text>
+              <Text style={styles.emptyLink}>Criar minha primeira meta</Text>
             </TouchableOpacity>
           </View>
         )}
-      </View>
+      </ScrollView>
 
-      {/* Modal Criar Meta */}
+      {/* Modal */}
       <Modal visible={showModal} animationType="slide" transparent>
-        <View className="flex-1 bg-black/60 justify-end">
-          <View className="bg-white rounded-t-[2.5rem] p-6 h-[85%]">
-             
-             <View className="flex-row justify-between items-center mb-8">
-               <Text className="text-xl font-bold text-slate-800">Nova Meta</Text>
-               <TouchableOpacity onPress={() => setShowModal(false)} className="p-2 bg-slate-100 rounded-full">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+             <View style={styles.modalHeader}>
+               <Text style={styles.modalTitle}>Nova Meta</Text>
+               <TouchableOpacity onPress={() => setShowModal(false)} style={styles.closeButton}>
                  <X size={20} color="#64748b" />
                </TouchableOpacity>
              </View>
 
-             <ScrollView className="space-y-6">
+             <ScrollView contentContainerStyle={styles.formGap}>
                 <View>
-                   <Text className="label-text">Nome da Meta</Text>
-                   <TextInput 
-                     placeholder="Ex: Viagem para Praia" 
-                     className="input-field" 
-                     value={name} onChangeText={setName} 
-                   />
+                   <Text style={styles.label}>Nome da Meta</Text>
+                   <TextInput placeholder="Ex: Viagem" style={styles.input} value={name} onChangeText={setName} placeholderTextColor="#94a3b8" />
                 </View>
 
-                <View className="flex-row gap-4">
-                  <View className="flex-1">
-                     <Text className="label-text">Valor Alvo (R$)</Text>
-                     <TextInput 
-                       placeholder="0,00" 
-                       keyboardType="numeric" 
-                       className="input-field"
-                       value={targetAmount} onChangeText={setTargetAmount}
-                     />
+                <View style={styles.row}>
+                  <View style={styles.flex1}>
+                     <Text style={styles.label}>Valor Alvo (R$)</Text>
+                     <TextInput placeholder="0,00" keyboardType="numeric" style={styles.input} value={targetAmount} onChangeText={setTargetAmount} placeholderTextColor="#94a3b8" />
                   </View>
-                  <View className="flex-1">
-                     <Text className="label-text">Data Alvo</Text>
-                     <TextInput 
-                       placeholder="DD/MM/AAAA" 
-                       className="input-field"
-                       value={deadline} onChangeText={setDeadline}
-                     />
+                  <View style={styles.flex1}>
+                     <Text style={styles.label}>Data Alvo</Text>
+                     <TextInput placeholder="DD/MM/AAAA" style={styles.input} value={deadline} onChangeText={setDeadline} placeholderTextColor="#94a3b8" />
                   </View>
                 </View>
 
                 <View>
-                   <Text className="label-text">Já guardou algo? (Opcional)</Text>
-                   <TextInput 
-                     placeholder="0,00" 
-                     keyboardType="numeric" 
-                     className="input-field"
-                     value={initialAmount} onChangeText={setInitialAmount}
-                   />
+                   <Text style={styles.label}>Já guardou algo? (Opcional)</Text>
+                   <TextInput placeholder="0,00" keyboardType="numeric" style={styles.input} value={initialAmount} onChangeText={setInitialAmount} placeholderTextColor="#94a3b8" />
                 </View>
 
-                <TouchableOpacity onPress={handleCreate} className="bg-emerald-500 py-4 rounded-2xl items-center mt-4 shadow-lg shadow-emerald-500/30">
-                  <Text className="text-white font-bold text-lg">Criar Meta</Text>
+                <TouchableOpacity onPress={handleCreate} style={styles.saveButton}>
+                  <Text style={styles.saveButtonText}>Criar Meta</Text>
                 </TouchableOpacity>
              </ScrollView>
           </View>
@@ -220,10 +211,54 @@ const GoalsManager: React.FC<Props> = ({ goals, onAddGoal, onUpdateGoal, onDelet
   );
 };
 
-// Estilos auxiliares para NativeWind
-const styles = {
-  label: "text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1",
-  input: "bg-slate-50 border border-slate-100 p-4 rounded-2xl text-slate-800 font-bold"
-};
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#f8fafc' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, paddingHorizontal: 16, marginTop: 16 },
+  title: { fontSize: 24, fontWeight: 'bold', color: '#1e293b' },
+  subtitle: { color: '#64748b', fontSize: 14 },
+  addButton: { backgroundColor: '#10b981', padding: 12, borderRadius: 24, elevation: 2 },
+  list: { paddingBottom: 100, paddingHorizontal: 16, gap: 16 },
+  
+  // Card
+  card: { backgroundColor: '#fff', padding: 20, borderRadius: 24, borderWidth: 1, borderColor: '#f1f5f9', position: 'relative', overflow: 'hidden', elevation: 2 },
+  progressBgAbs: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 6, backgroundColor: '#f1f5f9' },
+  progressFillAbs: { position: 'absolute', bottom: 0, left: 0, height: 6 },
+  
+  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
+  cardIconRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  iconBox: { padding: 12, borderRadius: 16 },
+  cardName: { fontWeight: 'bold', fontSize: 18, color: '#1e293b' },
+  cardDate: { fontSize: 12, color: '#64748b' },
+  alignEnd: { alignItems: 'flex-end' },
+  missingLabel: { fontSize: 10, fontWeight: 'bold', color: '#94a3b8' },
+  missingValue: { fontWeight: 'bold', color: '#1e293b', fontSize: 16 },
+
+  cardBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  progressLabel: { fontSize: 10, fontWeight: 'bold', color: '#94a3b8', marginBottom: 2 },
+  progressRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4 },
+  progressPerc: { fontSize: 20, fontWeight: 'bold' },
+  targetText: { fontSize: 12, color: '#64748b' },
+  
+  depositButton: { backgroundColor: '#1e293b', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  depositText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
+
+  emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40, backgroundColor: '#f8fafc', borderRadius: 24, borderWidth: 2, borderColor: '#e2e8f0', borderStyle: 'dashed' },
+  emptyText: { color: '#94a3b8', fontSize: 16, marginTop: 16, fontWeight: '500' },
+  emptyLink: { color: '#10b981', fontWeight: 'bold', marginTop: 8 },
+
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 40, borderTopRightRadius: 40, padding: 24, height: '85%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#1e293b' },
+  closeButton: { padding: 8, backgroundColor: '#f1f5f9', borderRadius: 20 },
+  formGap: { gap: 20 },
+  label: { fontSize: 12, fontWeight: 'bold', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, marginLeft: 4 },
+  input: { backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', padding: 16, borderRadius: 16, fontSize: 16, fontWeight: 'bold', color: '#1e293b' },
+  row: { flexDirection: 'row', gap: 16 },
+  flex1: { flex: 1 },
+  saveButton: { backgroundColor: '#10b981', paddingVertical: 16, borderRadius: 16, alignItems: 'center', marginTop: 16, shadowColor: '#10b981', shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
+  saveButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 18 }
+});
 
 export default GoalsManager;

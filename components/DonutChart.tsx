@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import Svg, { G, Circle } from 'react-native-svg';
 
 interface ChartSegment {
@@ -17,33 +17,29 @@ interface DonutChartProps {
 const DonutChart: React.FC<DonutChartProps> = ({ radius, strokeWidth, data, totalValue }) => {
   const halfCircle = radius + strokeWidth;
   const circumference = 2 * Math.PI * radius;
-
   let currentAngle = 0;
 
   return (
-    <View className="items-center justify-center relative">
+    <View style={styles.container}>
       <Svg 
         width={halfCircle * 2} 
         height={halfCircle * 2} 
         viewBox={`0 0 ${halfCircle * 2} ${halfCircle * 2}`}
       >
         <G rotation="-90" origin={`${halfCircle}, ${halfCircle}`}>
-          {/* Círculo de Fundo (Cinza Claro) */}
+          {/* Fundo */}
           <Circle
             cx={halfCircle}
             cy={halfCircle}
             r={radius}
-            stroke="#f1f5f9" // slate-100
+            stroke="#f1f5f9"
             strokeWidth={strokeWidth}
             fill="transparent"
           />
-
-          {/* Segmentos Coloridos */}
+          {/* Segmentos */}
           {data.map((item, index) => {
             const strokeDashoffset = circumference - (circumference * item.percentage) / 100;
             const angle = (currentAngle * 360) / 100;
-            
-            // Atualiza o ângulo para o próximo item começar onde este terminou
             currentAngle += item.percentage;
 
             return (
@@ -66,13 +62,37 @@ const DonutChart: React.FC<DonutChartProps> = ({ radius, strokeWidth, data, tota
         </G>
       </Svg>
       
-      {/* Texto Central (Total) */}
-      <View className="absolute items-center justify-center">
-        <Text className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Total</Text>
-        <Text className="text-xl font-bold text-slate-800">{totalValue}</Text>
+      <View style={styles.textContainer}>
+        <Text style={styles.label}>Total</Text>
+        <Text style={styles.value}>{totalValue}</Text>
       </View>
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  textContainer: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  label: {
+    fontSize: 10,
+    color: '#94a3b8',
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  value: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1e293b',
+  }
+});
 
 export default DonutChart;

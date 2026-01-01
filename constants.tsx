@@ -1,40 +1,52 @@
+import { Utensils, Car, ShoppingBag, Heart, Zap, Coffee, Wallet,Smartphone,TrendingUp,Home,Plane,AlertCircle } from 'lucide-react-native'; // CORREÇÃO: Import correto para Mobile
 
-import React from 'react';
-import { 
-  Home, 
-  Utensils, 
-  Car, 
-  ShoppingBag, 
-  Heart, 
-  Zap, 
-  Coffee, 
-  Wallet,
-  Smartphone,
-  Plane,
-  TrendingUp,
-  AlertCircle
-} from 'lucide-react';
-
-export const CATEGORIES = {
-  EXPENSE: [
-    { name: 'Alimentação', icon: <Utensils size={20} />, color: 'bg-orange-100 text-orange-600' },
-    { name: 'Transporte', icon: <Car size={20} />, color: 'bg-blue-100 text-blue-600' },
-    { name: 'Lazer', icon: <Coffee size={20} />, color: 'bg-purple-100 text-purple-600' },
-    { name: 'Compras', icon: <ShoppingBag size={20} />, color: 'bg-pink-100 text-pink-600' },
-    { name: 'Saúde', icon: <Heart size={20} />, color: 'bg-red-100 text-red-600' },
-    { name: 'Moradia', icon: <Home size={20} />, color: 'bg-indigo-100 text-indigo-600' },
-    { name: 'Serviços', icon: <Zap size={20} />, color: 'bg-yellow-100 text-yellow-600' },
-  ],
-  INCOME: [
-    { name: 'Salário', icon: <Wallet size={20} />, color: 'bg-emerald-100 text-emerald-600' },
-    { name: 'Comissão', icon: <TrendingUp size={20} />, color: 'bg-cyan-100 text-cyan-600' },
-    { name: 'Renda Extra', icon: <Smartphone size={20} />, color: 'bg-teal-100 text-teal-600' },
-  ]
+// Mapeamento de Cores para Hex (Substituindo Tailwind)
+const COLORS = {
+  orange: '#f97316',
+  blue: '#3b82f6',
+  purple: '#a855f7',
+  pink: '#ec4899',
+  red: '#ef4444',
+  indigo: '#6366f1',
+  yellow: '#eab308',
+  emerald: '#10b981',
+  cyan: '#06b6d4',
+  teal: '#14b8a6',
+  nubank: '#820ad1'
 };
 
-export const GOAL_ICONS = [
-  { name: 'Travel', icon: <Plane size={24} /> },
-  { name: 'House', icon: <Home size={24} /> },
-  { name: 'Emergency', icon: <AlertCircle size={24} /> },
-  { name: 'Invest', icon: <TrendingUp size={24} /> },
+export const INITIAL_CATEGORIES = [
+  // DESPESAS
+  { id: '1', name: 'Alimentação', iconName: 'Utensils', color: COLORS.orange, type: 'EXPENSE' },
+  { id: '2', name: 'Transporte', iconName: 'Car', color: COLORS.blue, type: 'EXPENSE' },
+  { id: '3', name: 'Lazer', iconName: 'Coffee', color: COLORS.purple, type: 'EXPENSE' },
+  { id: '4', name: 'Compras', iconName: 'ShoppingBag', color: COLORS.pink, type: 'EXPENSE' },
+  { id: '5', name: 'Saúde', iconName: 'Heart', color: COLORS.red, type: 'EXPENSE' },
+  { id: '6', name: 'Moradia', iconName: 'Home', color: COLORS.indigo, type: 'EXPENSE' },
+  { id: '7', name: 'Serviços', iconName: 'Zap', color: COLORS.yellow, type: 'EXPENSE' },
+  // RECEITAS
+  { id: '8', name: 'Salário', iconName: 'Wallet', color: COLORS.emerald, type: 'INCOME' },
+  { id: '9', name: 'Comissão', iconName: 'TrendingUp', color: COLORS.cyan, type: 'INCOME' },
+  { id: '10', name: 'Renda Extra', iconName: 'Smartphone', color: COLORS.teal, type: 'INCOME' },
 ];
+
+export const INITIAL_CARDS = [
+  {
+    id: '1',
+    name: 'Nubank',
+    bank: 'Nubank',
+    limit: 5000,
+    used: 1250,
+    closingDay: 5,
+    dueDay: 12,
+    color: COLORS.nubank
+  }
+];
+
+export const INITIAL_PROFILE = {
+  name: 'Usuário',
+  email: 'usuario@email.com',
+  avatar: 'https://github.com/shadcn.png',
+  monthlyIncomeLimit: 10000,
+  memberSince: '2024'
+};

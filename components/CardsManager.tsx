@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Modal, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Modal, Alert, StyleSheet } from 'react-native';
 import { CreditCard } from '../types';
-import { CreditCard as CardIcon, Plus, X, Trash2, Calendar, DollarSign } from 'lucide-react-native';
+import { CreditCard as CardIcon, Plus, X, Trash2, Wallet } from 'lucide-react-native';
 
 interface Props {
   cards: CreditCard[];
   onAddCard: (card: CreditCard) => void;
-  onDeleteCard: (id: string) => void;
+  onUpdate: (cards: CreditCard[]) => void; // Compatibilidade com App.tsx
 }
 
-const CardsManager: React.FC<Props> = ({ cards, onAddCard, onDeleteCard }) => {
+// Adaptador para manter compatibilidade se a prop mudar de nome
+const CardsManager: React.FC<Props> = ({ cards, onAddCard, onUpdate }) => {
   const [showModal, setShowModal] = useState(false);
   
   // Estados do Formulário
@@ -30,15 +31,26 @@ const CardsManager: React.FC<Props> = ({ cards, onAddCard, onDeleteCard }) => {
       name,
       bank: bank || 'Banco',
       limit: parseFloat(limit.replace(',', '.')),
-      used: 0, // Começa com 0 de uso
+      used: 0,
       closingDay: parseInt(closingDay) || 1,
       dueDay: parseInt(dueDay),
-      color: 'bg-slate-800' // Cor padrão, poderia ser dinâmica
+      color: '#1e293b' // Cor padrão Slate-800
     };
 
-    onAddCard(newCard);
+    // Atualiza via onUpdate (substituindo a lista) ou onAddCard (adicionando um)
+    if (onUpdate) {
+      onUpdate([...cards, newCard]);
+    } else if (onAddCard) {
+      onAddCard(newCard);
+    }
+    
     setShowModal(false);
     resetForm();
+  };
+
+  const handleDelete = (id: string) => {
+    const newCards = cards.filter(c => c.id !== id);
+    if (onUpdate) onUpdate(newCards);
   };
 
   const resetForm = () => {
@@ -50,65 +62,65 @@ const CardsManager: React.FC<Props> = ({ cards, onAddCard, onDeleteCard }) => {
   };
 
   return (
-    <View className="pb-24">
-      <View className="flex-row justify-between items-center mb-6">
+    <View style={styles.container}>
+      <View style={styles.header}>
         <View>
-          <Text className="text-xl font-bold text-slate-800">Meus Cartões</Text>
-          <Text className="text-slate-400 text-xs">Gerencie seus limites</Text>
+          <Text style={styles.title}>Meus Cartões</Text>
+          <Text style={styles.subtitle}>Gerencie seus limites</Text>
         </View>
         <TouchableOpacity 
           onPress={() => setShowModal(true)}
-          className="bg-emerald-500 p-3 rounded-full shadow-sm"
+          style={styles.addButton}
         >
           <Plus size={24} color="#FFF" />
         </TouchableOpacity>
       </View>
 
-      <View className="gap-6">
+      <ScrollView contentContainerStyle={styles.list}>
         {cards.map(card => {
           const usedPercent = Math.min((card.used / card.limit) * 100, 100);
           const available = card.limit - card.used;
 
           return (
-            <View key={card.id} className="bg-white rounded-[2rem] p-1 shadow-sm border border-slate-100">
+            <View key={card.id} style={styles.cardContainer}>
                {/* Visual do Cartão */}
-               <View className={`h-48 rounded-[1.8rem] p-6 justify-between ${card.color || 'bg-slate-800'} relative overflow-hidden`}>
-                  {/* Círculos decorativos de fundo */}
-                  <View className="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-white/10" />
-                  <View className="absolute -left-10 -bottom-10 w-32 h-32 rounded-full bg-white/5" />
+               <View style={[styles.cardVisual, { backgroundColor: card.color || '#1e293b' }]}>
+                  {/* Decoração */}
+                  <View style={styles.decorCircle1} />
+                  <View style={styles.decorCircle2} />
 
-                  <View className="flex-row justify-between items-start">
+                  <View style={styles.cardTop}>
                     <View>
-                      <Text className="text-white/70 text-xs font-bold uppercase tracking-widest mb-1">{card.bank}</Text>
-                      <Text className="text-white text-xl font-bold">{card.name}</Text>
+                      <Text style={styles.bankName}>{card.bank}</Text>
+                      <Text style={styles.cardName}>{card.name}</Text>
                     </View>
                     <CardIcon color="rgba(255,255,255,0.8)" size={32} />
                   </View>
 
                   <View>
-                    <View className="flex-row justify-between mb-2">
-                       <Text className="text-white/80 text-xs">Vence dia {card.dueDay}</Text>
-                       <Text className="text-white font-bold text-lg">R$ {card.used.toLocaleString()}</Text>
+                    <View style={styles.cardInfoRow}>
+                       <Text style={styles.cardDate}>Vence dia {card.dueDay}</Text>
+                       <Text style={styles.cardUsed}>R$ {card.used.toLocaleString()}</Text>
                     </View>
                     {/* Barra de Limite */}
-                    <View className="h-1.5 bg-black/30 rounded-full overflow-hidden w-full">
-                       <View className="h-full bg-white/90" style={{ width: `${usedPercent}%` }} />
+                    <View style={styles.progressBarBg}>
+                       <View style={[styles.progressBarFill, { width: `${usedPercent}%` }]} />
                     </View>
-                    <View className="flex-row justify-between mt-1">
-                      <Text className="text-white/60 text-[10px]">Limite: R$ {card.limit.toLocaleString()}</Text>
-                      <Text className="text-emerald-300 text-[10px] font-bold">Disponível: R$ {available.toLocaleString()}</Text>
+                    <View style={styles.cardLimitsRow}>
+                      <Text style={styles.limitText}>Limite: R$ {card.limit.toLocaleString()}</Text>
+                      <Text style={styles.availableText}>Disp: R$ {available.toLocaleString()}</Text>
                     </View>
                   </View>
                </View>
 
-               {/* Ações do Cartão */}
-               <View className="flex-row justify-end p-3">
+               {/* Ações */}
+               <View style={styles.actionsRow}>
                  <TouchableOpacity 
-                    onPress={() => Alert.alert("Excluir", "Remover este cartão?", [{text: "Cancelar"}, {text: "Sim", onPress: () => onDeleteCard(card.id)}])}
-                    className="flex-row items-center gap-2 px-3 py-2"
+                    onPress={() => Alert.alert("Excluir", "Remover este cartão?", [{text: "Cancelar"}, {text: "Sim", onPress: () => handleDelete(card.id)}])}
+                    style={styles.deleteButton}
                  >
                     <Trash2 size={16} color="#ef4444" />
-                    <Text className="text-red-500 text-xs font-bold">Remover</Text>
+                    <Text style={styles.deleteText}>Remover</Text>
                  </TouchableOpacity>
                </View>
             </View>
@@ -116,50 +128,50 @@ const CardsManager: React.FC<Props> = ({ cards, onAddCard, onDeleteCard }) => {
         })}
 
         {cards.length === 0 && (
-          <View className="items-center justify-center py-10 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
-            <CardIcon size={48} color="#cbd5e1" />
-            <Text className="text-slate-400 font-medium mt-4">Nenhum cartão cadastrado</Text>
+          <View style={styles.emptyState}>
+            <Wallet size={48} color="#cbd5e1" />
+            <Text style={styles.emptyText}>Nenhum cartão cadastrado</Text>
           </View>
         )}
-      </View>
+      </ScrollView>
 
-      {/* Modal Adicionar Cartão */}
+      {/* Modal */}
       <Modal visible={showModal} animationType="slide" transparent>
-        <View className="flex-1 bg-black/60 justify-end">
-          <View className="bg-white rounded-t-[2.5rem] p-6 h-[85%]">
-             <View className="flex-row justify-between items-center mb-8">
-               <Text className="text-xl font-bold text-slate-800">Novo Cartão</Text>
-               <TouchableOpacity onPress={() => setShowModal(false)} className="p-2 bg-slate-100 rounded-full">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+             <View style={styles.modalHeader}>
+               <Text style={styles.modalTitle}>Novo Cartão</Text>
+               <TouchableOpacity onPress={() => setShowModal(false)} style={styles.closeButton}>
                  <X size={20} color="#64748b" />
                </TouchableOpacity>
              </View>
 
-             <ScrollView className="space-y-5">
+             <ScrollView contentContainerStyle={styles.formGap}>
                 <View>
-                   <Text className="label-text">Apelido do Cartão</Text>
-                   <TextInput placeholder="Ex: Nubank Black" className="input-field" value={name} onChangeText={setName} />
+                   <Text style={styles.label}>Apelido do Cartão</Text>
+                   <TextInput placeholder="Ex: Nubank Black" style={styles.input} value={name} onChangeText={setName} placeholderTextColor="#94a3b8" />
                 </View>
                 <View>
-                   <Text className="label-text">Banco Emissor</Text>
-                   <TextInput placeholder="Ex: Nubank" className="input-field" value={bank} onChangeText={setBank} />
+                   <Text style={styles.label}>Banco Emissor</Text>
+                   <TextInput placeholder="Ex: Nubank" style={styles.input} value={bank} onChangeText={setBank} placeholderTextColor="#94a3b8" />
                 </View>
                 <View>
-                   <Text className="label-text">Limite Total (R$)</Text>
-                   <TextInput placeholder="0,00" keyboardType="numeric" className="input-field" value={limit} onChangeText={setLimit} />
+                   <Text style={styles.label}>Limite Total (R$)</Text>
+                   <TextInput placeholder="0,00" keyboardType="numeric" style={styles.input} value={limit} onChangeText={setLimit} placeholderTextColor="#94a3b8" />
                 </View>
-                <View className="flex-row gap-4">
-                  <View className="flex-1">
-                     <Text className="label-text">Dia Fechamento</Text>
-                     <TextInput placeholder="Dia" keyboardType="numeric" className="input-field" value={closingDay} onChangeText={setClosingDay} maxLength={2} />
+                <View style={styles.row}>
+                  <View style={styles.flex1}>
+                     <Text style={styles.label}>Dia Fechamento</Text>
+                     <TextInput placeholder="Dia" keyboardType="numeric" style={styles.input} value={closingDay} onChangeText={setClosingDay} maxLength={2} placeholderTextColor="#94a3b8" />
                   </View>
-                  <View className="flex-1">
-                     <Text className="label-text">Dia Vencimento</Text>
-                     <TextInput placeholder="Dia" keyboardType="numeric" className="input-field" value={dueDay} onChangeText={setDueDay} maxLength={2} />
+                  <View style={styles.flex1}>
+                     <Text style={styles.label}>Dia Vencimento</Text>
+                     <TextInput placeholder="Dia" keyboardType="numeric" style={styles.input} value={dueDay} onChangeText={setDueDay} maxLength={2} placeholderTextColor="#94a3b8" />
                   </View>
                 </View>
 
-                <TouchableOpacity onPress={handleCreate} className="bg-emerald-500 py-4 rounded-2xl items-center mt-6 shadow-lg shadow-emerald-500/30">
-                  <Text className="text-white font-bold text-lg">Adicionar Cartão</Text>
+                <TouchableOpacity onPress={handleCreate} style={styles.saveButton}>
+                  <Text style={styles.saveButtonText}>Adicionar Cartão</Text>
                 </TouchableOpacity>
              </ScrollView>
           </View>
@@ -169,9 +181,50 @@ const CardsManager: React.FC<Props> = ({ cards, onAddCard, onDeleteCard }) => {
   );
 };
 
-const styles = {
-  label: "text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1",
-  input: "bg-slate-50 border border-slate-100 p-4 rounded-2xl text-slate-800 font-bold"
-};
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#f8fafc' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, paddingHorizontal: 16, marginTop: 16 },
+  title: { fontSize: 24, fontWeight: 'bold', color: '#1e293b' },
+  subtitle: { color: '#64748b', fontSize: 14 },
+  addButton: { backgroundColor: '#10b981', padding: 12, borderRadius: 24, elevation: 2 },
+  list: { paddingBottom: 100, paddingHorizontal: 16, gap: 24 },
+  
+  // Card
+  cardContainer: { backgroundColor: '#fff', borderRadius: 32, padding: 4, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10 },
+  cardVisual: { height: 200, borderRadius: 28, padding: 24, justifyContent: 'space-between', position: 'relative', overflow: 'hidden' },
+  decorCircle1: { position: 'absolute', top: -40, right: -40, width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(255,255,255,0.1)' },
+  decorCircle2: { position: 'absolute', bottom: -40, left: -40, width: 120, height: 120, borderRadius: 60, backgroundColor: 'rgba(255,255,255,0.05)' },
+  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  bankName: { color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
+  cardName: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
+  cardInfoRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  cardDate: { color: 'rgba(255,255,255,0.8)', fontSize: 12 },
+  cardUsed: { color: '#fff', fontWeight: 'bold', fontSize: 18 },
+  progressBarBg: { height: 6, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 3, overflow: 'hidden', width: '100%' },
+  progressBarFill: { height: '100%', backgroundColor: 'rgba(255,255,255,0.9)' },
+  cardLimitsRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
+  limitText: { color: 'rgba(255,255,255,0.6)', fontSize: 10 },
+  availableText: { color: '#6ee7b7', fontSize: 10, fontWeight: 'bold' },
+  actionsRow: { flexDirection: 'row', justifyContent: 'flex-end', padding: 12 },
+  deleteButton: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12 },
+  deleteText: { color: '#ef4444', fontSize: 12, fontWeight: 'bold' },
+
+  emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40, backgroundColor: '#f8fafc', borderRadius: 24, borderWidth: 2, borderColor: '#e2e8f0', borderStyle: 'dashed' },
+  emptyText: { color: '#94a3b8', fontSize: 16, marginTop: 16, fontWeight: '500' },
+
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 40, borderTopRightRadius: 40, padding: 24, height: '85%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#1e293b' },
+  closeButton: { padding: 8, backgroundColor: '#f1f5f9', borderRadius: 20 },
+  formGap: { gap: 20 },
+  label: { fontSize: 12, fontWeight: 'bold', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, marginLeft: 4 },
+  input: { backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', padding: 16, borderRadius: 16, fontSize: 16, fontWeight: 'bold', color: '#1e293b' },
+  row: { flexDirection: 'row', gap: 16 },
+  flex1: { flex: 1 },
+  saveButton: { backgroundColor: '#10b981', paddingVertical: 16, borderRadius: 16, alignItems: 'center', marginTop: 16, shadowColor: '#10b981', shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
+  saveButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 18 }
+});
 
 export default CardsManager;
