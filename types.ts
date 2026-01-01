@@ -1,4 +1,3 @@
-
 export enum TransactionType {
   INCOME = 'INCOME',
   EXPENSE = 'EXPENSE'
@@ -33,6 +32,7 @@ export interface Transaction {
   date: string;
   paymentMethod: PaymentMethod;
   isRecurrent: boolean;
+  recurrenceType?: 'fixed' | 'installments'; // Adicionado para suportar a nova função
   details?: TransactionDetail[];
 }
 
