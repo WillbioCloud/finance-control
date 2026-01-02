@@ -6,19 +6,37 @@ import { CreditCard as CardIcon, Plus, X, Trash2, Wallet } from 'lucide-react-na
 interface Props {
   cards: CreditCard[];
   onAddCard: (card: CreditCard) => void;
-  onUpdate: (cards: CreditCard[]) => void; // Compatibilidade com App.tsx
+  onUpdate: (cards: CreditCard[]) => void;
 }
 
-// Adaptador para manter compatibilidade se a prop mudar de nome
 const CardsManager: React.FC<Props> = ({ cards, onAddCard, onUpdate }) => {
   const [showModal, setShowModal] = useState(false);
   
-  // Estados do Formulário
+  // Estados do Formulário (Preservados no código para uso futuro quando a integração existir)
   const [name, setName] = useState('');
   const [bank, setBank] = useState('');
   const [limit, setLimit] = useState('');
   const [closingDay, setClosingDay] = useState('');
   const [dueDay, setDueDay] = useState('');
+
+  // --- NOVA LÓGICA DE RESTRIÇÃO ---
+  const handleAddPress = () => {
+    // Verifica se existem dados bancários importados pelo Open Finance.
+    // Como a funcionalidade está marcada como "Em Breve" no Perfil, 
+    // assumimos que não há dados (false).
+    const hasOpenFinanceData = false; 
+
+    if (!hasOpenFinanceData) {
+      Alert.alert(
+        "Nenhuma informação bancária",
+        "Para adicionar cartões, é necessário conectar sua conta bancária via Open Finance na aba Perfil."
+      );
+      return;
+    }
+
+    // Se houvesse dados, abriria o modal de seleção/criação
+    setShowModal(true);
+  };
 
   const handleCreate = () => {
     if (!name || !limit || !dueDay) {
@@ -34,10 +52,9 @@ const CardsManager: React.FC<Props> = ({ cards, onAddCard, onUpdate }) => {
       used: 0,
       closingDay: parseInt(closingDay) || 1,
       dueDay: parseInt(dueDay),
-      color: '#1e293b' // Cor padrão Slate-800
+      color: '#1e293b'
     };
 
-    // Atualiza via onUpdate (substituindo a lista) ou onAddCard (adicionando um)
     if (onUpdate) {
       onUpdate([...cards, newCard]);
     } else if (onAddCard) {
@@ -69,7 +86,7 @@ const CardsManager: React.FC<Props> = ({ cards, onAddCard, onUpdate }) => {
           <Text style={styles.subtitle}>Gerencie seus limites</Text>
         </View>
         <TouchableOpacity 
-          onPress={() => setShowModal(true)}
+          onPress={handleAddPress} // Agora chama a verificação
           style={styles.addButton}
         >
           <Plus size={24} color="#FFF" />
@@ -83,7 +100,6 @@ const CardsManager: React.FC<Props> = ({ cards, onAddCard, onUpdate }) => {
 
           return (
             <View key={card.id} style={styles.cardContainer}>
-               {/* Visual do Cartão */}
                <View style={[styles.cardVisual, { backgroundColor: card.color || '#1e293b' }]}>
                   {/* Decoração */}
                   <View style={styles.decorCircle1} />
@@ -102,7 +118,6 @@ const CardsManager: React.FC<Props> = ({ cards, onAddCard, onUpdate }) => {
                        <Text style={styles.cardDate}>Vence dia {card.dueDay}</Text>
                        <Text style={styles.cardUsed}>R$ {card.used.toLocaleString()}</Text>
                     </View>
-                    {/* Barra de Limite */}
                     <View style={styles.progressBarBg}>
                        <View style={[styles.progressBarFill, { width: `${usedPercent}%` }]} />
                     </View>
@@ -113,7 +128,6 @@ const CardsManager: React.FC<Props> = ({ cards, onAddCard, onUpdate }) => {
                   </View>
                </View>
 
-               {/* Ações */}
                <View style={styles.actionsRow}>
                  <TouchableOpacity 
                     onPress={() => Alert.alert("Excluir", "Remover este cartão?", [{text: "Cancelar"}, {text: "Sim", onPress: () => handleDelete(card.id)}])}
@@ -135,7 +149,7 @@ const CardsManager: React.FC<Props> = ({ cards, onAddCard, onUpdate }) => {
         )}
       </ScrollView>
 
-      {/* Modal */}
+      {/* Modal mantido no código (mas inacessível pelo usuário por enquanto) */}
       <Modal visible={showModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -189,7 +203,6 @@ const styles = StyleSheet.create({
   addButton: { backgroundColor: '#10b981', padding: 12, borderRadius: 24, elevation: 2 },
   list: { paddingBottom: 100, paddingHorizontal: 16, gap: 24 },
   
-  // Card
   cardContainer: { backgroundColor: '#fff', borderRadius: 32, padding: 4, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10 },
   cardVisual: { height: 200, borderRadius: 28, padding: 24, justifyContent: 'space-between', position: 'relative', overflow: 'hidden' },
   decorCircle1: { position: 'absolute', top: -40, right: -40, width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(255,255,255,0.1)' },
@@ -212,7 +225,6 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40, backgroundColor: '#f8fafc', borderRadius: 24, borderWidth: 2, borderColor: '#e2e8f0', borderStyle: 'dashed' },
   emptyText: { color: '#94a3b8', fontSize: 16, marginTop: 16, fontWeight: '500' },
 
-  // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 40, borderTopRightRadius: 40, padding: 24, height: '85%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 },

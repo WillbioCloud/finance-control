@@ -25,8 +25,7 @@ import {
   RefreshCcw, 
   X, 
   Check,
-  Landmark, // Ícone de Banco
-  Link as LinkIcon,
+  Landmark, 
   ShieldCheck
 } from 'lucide-react-native';
 import { supabase } from '../utils/supabase';
@@ -42,7 +41,7 @@ const Profile: React.FC<Props> = ({ profile, onUpdateProfile, onNavigate }) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
-  // Estado Simulado de Open Finance
+  // Estado Simulado de Open Finance (Removido o mock complexo)
   const [isConnected, setIsConnected] = useState(false);
 
   // Estados de Edição
@@ -103,26 +102,11 @@ const Profile: React.FC<Props> = ({ profile, onUpdateProfile, onNavigate }) => {
     );
   };
 
-  // --- LÓGICA MOCK DE OPEN FINANCE ---
+  // --- ALTERAÇÃO AQUI: APENAS AVISO "EM BREVE" ---
   const handleConnectBank = () => {
-    if (isConnected) {
-        Alert.alert("Gerenciar Conexão", "Sua conexão com o Nubank está ativa e sincronizando.");
-        return;
-    }
-
     Alert.alert(
-        "Open Finance (Simulação)",
-        "Aqui abriria o widget de conexão segura (Pluggy/Belvo) para você logar no seu banco.\n\nDeseja simular uma conexão bem-sucedida?",
-        [
-            { text: "Cancelar", style: "cancel" },
-            { 
-                text: "Simular Conexão", 
-                onPress: () => {
-                    setIsConnected(true);
-                    Alert.alert("Sucesso", "Conta 'Nubank' conectada! As transações seriam importadas agora.");
-                } 
-            }
-        ]
+      "Em breve", 
+      "A integração automática com bancos estará disponível nas próximas atualizações do App."
     );
   };
 
@@ -174,10 +158,10 @@ const Profile: React.FC<Props> = ({ profile, onUpdateProfile, onNavigate }) => {
             </View>
             <View style={{flex: 1}}>
                 <Text style={styles.connectTitle}>
-                    {isConnected ? 'Nubank (Conectado)' : 'Conectar Conta Bancária'}
+                    {isConnected ? 'Banco Conectado' : 'Conectar Conta Bancária'}
                 </Text>
                 <Text style={styles.connectSubtitle}>
-                    {isConnected ? 'Sincronização automática ativa' : 'Importe suas transações automaticamente'}
+                    {isConnected ? 'Sincronização ativa' : 'Importe suas transações automaticamente'}
                 </Text>
             </View>
             <View style={[styles.statusDot, isConnected ? { backgroundColor: '#10b981' } : { backgroundColor: '#e2e8f0' }]} />
