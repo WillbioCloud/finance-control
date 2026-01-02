@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { SafeAreaView, View, StyleSheet, StatusBar, TouchableOpacity, Text, Platform, ActivityIndicator, Alert } from 'react-native';
+import { View, StyleSheet, StatusBar, TouchableOpacity, Text, Platform, ActivityIndicator, Alert } from 'react-native';
+// 1. IMPORTAÇÃO ATUALIZADA
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Home, PieChart, CreditCard as CardIcon, Target, User, PlusCircle, List, LogIn } from 'lucide-react-native';
 
 import { supabase } from './utils/supabase';
@@ -79,9 +81,11 @@ export default function App() {
 
       if (txs) setTransactions(txs);
       
-      // Sincronização de Categorias (Incluindo Reserva de Emergência)
+      // Sincronização de Categorias
       if (cats && cats.length > 0) {
         const mappedCats = cats.map((c: any) => ({ ...c, iconName: c.icon_name || c.iconName }));
+        
+        // Garante que a categoria "Reserva de Emergência" exista
         const emergencyCat = INITIAL_CATEGORIES.find(ic => ic.name === 'Reserva de Emergência');
         const hasEmergency = mappedCats.some(mc => mc.name === emergencyCat?.name);
 
@@ -89,6 +93,7 @@ export default function App() {
           mappedCats.push(emergencyCat);
           await FinanceService.syncCategories([emergencyCat]);
         }
+
         setCategories(mappedCats);
       } else {
         await FinanceService.syncCategories(INITIAL_CATEGORIES);
@@ -134,15 +139,12 @@ export default function App() {
     }
   };
 
-  // NOVO HANDLER PARA ATUALIZAÇÃO
+  // Handler para atualização de detalhes (IA no Extrato)
   const handleUpdateTransaction = async (updatedTx: Transaction) => {
-    // Atualiza estado local imediatamente
     setTransactions(prev => prev.map(t => t.id === updatedTx.id ? updatedTx : t));
-    
     try {
       await FinanceService.updateTransaction(updatedTx);
     } catch (error) {
-      Alert.alert("Erro", "Falha ao atualizar detalhes na nuvem.");
       console.error(error);
     }
   };
@@ -168,20 +170,21 @@ export default function App() {
   };
 
   if (loadingSession) return <View style={styles.centerContainer}><ActivityIndicator size="large" color="#10b981" /></View>;
-  if (!session) return <LoginScreen onLoginSuccess={() => {}} />;
+  
+  // 2. SAFEAREAPROVIDER ENVOLVENDO A TELA DE LOGIN TAMBÉM
+  if (!session) {
+    return (
+      <SafeAreaProvider>
+        <LoginScreen onLoginSuccess={() => {}} />
+      </SafeAreaProvider>
+    );
+  }
 
   const renderContent = () => {
     if (showAddModal) return <TransactionForm categories={categories} onAdd={handleAddTransaction} onCancel={() => setShowAddModal(false)} />;
     switch (activeTab) {
       case 'home': return <Dashboard transactions={transactions} goals={goals} cards={cards} userProfile={userProfile} categories={categories} onDeleteTransaction={handleDeleteTransaction} onNavigate={setActiveTab} />;
-      case 'list': return (
-        <TransactionsList 
-          transactions={transactions} 
-          categories={categories} 
-          onDelete={handleDeleteTransaction}
-          onUpdate={handleUpdateTransaction} // PASSANDO A NOVA FUNÇÃO
-        />
-      );
+      case 'list': return <TransactionsList transactions={transactions} categories={categories} onDelete={handleDeleteTransaction} onUpdate={handleUpdateTransaction} />;
       case 'analysis': return <Analysis transactions={transactions} categories={categories} />;
       case 'cards': return <CardsManager cards={cards} onUpdate={handleUpdateCards} onAddCard={() => {}} />;
       case 'goals': return <GoalsManager goals={goals} onUpdate={handleUpdateGoals} transactions={transactions} categories={categories} onAddTransaction={handleAddTransaction} />;
@@ -222,19 +225,22 @@ export default function App() {
     );
   };
 
+  // 3. SAFEAREAPROVIDER ENVOLVENDO O APP PRINCIPAL
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
-      <View style={styles.content}>
-        {loadingData ? <View style={styles.centerContainer}><ActivityIndicator size="large" color="#10b981" /></View> : renderContent()}
-      </View>
-      {renderBottomMenu()}
-    </SafeAreaView>
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+        <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
+        <View style={styles.content}>
+          {loadingData ? <View style={styles.centerContainer}><ActivityIndicator size="large" color="#10b981" /></View> : renderContent()}
+        </View>
+        {renderBottomMenu()}
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc', paddingTop: Platform.OS === 'android' ? 25 : 0 },
+  container: { flex: 1, backgroundColor: '#f8fafc' }, // Removido o padding manual, o SafeAreaView cuida disso
   content: { flex: 1, paddingHorizontal: 16 },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   bottomBar: { flexDirection: 'row', backgroundColor: '#ffffff', paddingVertical: 12, paddingHorizontal: 8, borderTopWidth: 1, borderTopColor: '#f1f5f9', justifyContent: 'space-around', alignItems: 'flex-end', height: 80, paddingBottom: Platform.OS === 'ios' ? 20 : 12 },
