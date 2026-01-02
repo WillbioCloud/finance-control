@@ -26,7 +26,8 @@ import {
   X, 
   Repeat, 
   ArrowDownCircle, 
-  ArrowUpCircle 
+  ArrowUpCircle,
+  ShieldCheck // <--- NOVO: Adicionado do código novo
 } from 'lucide-react-native';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
@@ -37,7 +38,7 @@ interface Props {
 }
 
 const TransactionForm: React.FC<Props> = ({ categories = [], onAdd, onCancel }) => {
-  // ESTADOS
+  // ESTADOS (Mantido do ANTIGO)
   const [type, setType] = useState<TransactionType>(TransactionType.EXPENSE);
   const [amount, setAmount] = useState('0,00'); 
   const [rawValue, setRawValue] = useState(0); 
@@ -55,7 +56,7 @@ const TransactionForm: React.FC<Props> = ({ categories = [], onAdd, onCancel }) 
   const [isRecurrent, setIsRecurrent] = useState(false);
   const [recurrenceType, setRecurrenceType] = useState<'fixed' | 'installments'>('fixed');
 
-  // LÓGICA
+  // LÓGICA (Mantido do ANTIGO)
   const availableCategories = useMemo(() => {
     return categories.filter(c => c.type === type);
   }, [categories, type]);
@@ -75,7 +76,7 @@ const TransactionForm: React.FC<Props> = ({ categories = [], onAdd, onCancel }) 
     }
   }, []);
 
-  // HANDLERS
+  // HANDLERS (Mantido do ANTIGO)
   const handleTypeChange = (newType: TransactionType) => {
     if (newType === type) return;
     setType(newType);
@@ -109,7 +110,7 @@ const TransactionForm: React.FC<Props> = ({ categories = [], onAdd, onCancel }) 
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
-      // PROMPT INTELIGENTE COM CATEGORIZAÇÃO
+      // PROMPT INTELIGENTE (Mantido o original que você gostava)
       const prompt = `
         Analise a lista de compras: "${detailsText}".
         
@@ -136,7 +137,6 @@ const TransactionForm: React.FC<Props> = ({ categories = [], onAdd, onCancel }) 
       
       const parsed = JSON.parse(text);
       
-      // Opcional: Atualizar o valor total da transação com a soma dos itens
       const totalSum = parsed.reduce((acc: number, item: any) => acc + (item.amount || 0), 0);
       if (totalSum > 0) {
          setRawValue(totalSum);
@@ -189,7 +189,7 @@ const TransactionForm: React.FC<Props> = ({ categories = [], onAdd, onCancel }) 
     });
   };
 
-  // CORES
+  // CORES (Mantidas as originais detalhadas)
   const isExpense = type === TransactionType.EXPENSE;
   const colors = {
     slate100: '#f1f5f9', slate200: '#e2e8f0', slate400: '#94a3b8', slate500: '#64748b', slate700: '#334155', slate800: '#1e293b',
@@ -360,19 +360,44 @@ const TransactionForm: React.FC<Props> = ({ categories = [], onAdd, onCancel }) 
               </View>
               <ScrollView contentContainerStyle={{ padding: 20 }}>
                 {availableCategories.length > 0 ? (
-                  availableCategories.map((cat, idx) => (
-                    <TouchableOpacity 
-                      key={`${cat.id}-${idx}`}
-                      onPress={() => { setSelectedCategoryId(cat.id); setShowCategoryModal(false); }}
-                      style={[styles.categoryItem, selectedCategoryId === cat.id ? { borderColor: activeBorderColor, backgroundColor: activeLightBg } : { borderColor: colors.slate100, backgroundColor: colors.white }]}
-                    >
-                      <View style={[styles.categoryIcon, { backgroundColor: cat.color }]}>
-                         <Text style={styles.categoryLetter}>{cat.name.charAt(0)}</Text>
-                      </View>
-                      <Text style={styles.categoryName}>{cat.name}</Text>
-                      {selectedCategoryId === cat.id && <Check size={24} color={activeColor} />}
-                    </TouchableOpacity>
-                  ))
+                  availableCategories.map((cat, idx) => {
+                    // --- NOVO: LÓGICA DE CATEGORIA DE EMERGÊNCIA ADICIONADA AQUI ---
+                    const isEmergency = cat.name === 'Reserva de Emergência';
+                    
+                    return (
+                      <TouchableOpacity 
+                        key={`${cat.id}-${idx}`}
+                        onPress={() => { setSelectedCategoryId(cat.id); setShowCategoryModal(false); }}
+                        style={[
+                          styles.categoryItem, 
+                          selectedCategoryId === cat.id 
+                            ? { borderColor: activeBorderColor, backgroundColor: activeLightBg } 
+                            : { borderColor: colors.slate100, backgroundColor: colors.white },
+                          isEmergency && styles.emergencyCategoryItem // Aplica estilo dourado se for emergência
+                        ]}
+                      >
+                        <View style={[
+                          styles.categoryIcon, 
+                          { backgroundColor: cat.color },
+                          isEmergency && { backgroundColor: '#f59e0b' } // Cor do ícone dourado
+                        ]}>
+                           {/* Se for Reserva, mostra escudo, senão letra */}
+                           {isEmergency ? (
+                             <ShieldCheck size={20} color="#fff" />
+                           ) : (
+                             <Text style={styles.categoryLetter}>{cat.name.charAt(0)}</Text>
+                           )}
+                        </View>
+                        <Text style={[
+                          styles.categoryName,
+                          isEmergency && { color: '#d97706', fontWeight: '900' } // Texto dourado
+                        ]}>
+                          {cat.name}
+                        </Text>
+                        {selectedCategoryId === cat.id && <Check size={24} color={activeColor} />}
+                      </TouchableOpacity>
+                    );
+                  })
                 ) : (
                    <View style={styles.emptyState}>
                       <ListChecks size={48} color={colors.slate400} />
@@ -433,6 +458,10 @@ const styles = StyleSheet.create({
   modalTitle: { fontWeight: 'bold', fontSize: 20, color: '#1e293b' },
   closeButton: { backgroundColor: '#f1f5f9', padding: 8, borderRadius: 999 },
   categoryItem: { flexDirection: 'row', alignItems: 'center', gap: 16, padding: 16, marginBottom: 12, borderRadius: 16, borderWidth: 1 },
+  
+  // --- NOVO ESTILO ADICIONADO ---
+  emergencyCategoryItem: { borderColor: '#d97706', backgroundColor: '#fffbeb', borderWidth: 2 },
+  
   categoryIcon: { width: 48, height: 48, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
   categoryLetter: { fontWeight: 'bold', fontSize: 18, color: 'rgba(255,255,255,0.9)' },
   categoryName: { flex: 1, fontWeight: 'bold', fontSize: 16, color: '#1e293b' },

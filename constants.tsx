@@ -1,6 +1,18 @@
-import { Utensils, Car, ShoppingBag, Heart, Zap, Coffee, Wallet,Smartphone,TrendingUp,Home,Plane,AlertCircle } from 'lucide-react-native'; // CORREÇÃO: Import correto para Mobile
+import { 
+  Utensils, 
+  Car, 
+  ShoppingBag, 
+  Heart, 
+  Zap, 
+  Coffee, 
+  Wallet,
+  Smartphone,
+  TrendingUp,
+  Home,
+  ShieldCheck, // Importante para a Reserva
+  AlertCircle
+} from 'lucide-react-native';
 
-// Mapeamento de Cores para Hex (Substituindo Tailwind)
 const COLORS = {
   orange: '#f97316',
   blue: '#3b82f6',
@@ -12,27 +24,32 @@ const COLORS = {
   emerald: '#10b981',
   cyan: '#06b6d4',
   teal: '#14b8a6',
-  nubank: '#820ad1'
+  nubank: '#820ad1',
+  gold: '#f59e0b' // Cor da Reserva
 };
 
 export const INITIAL_CATEGORIES = [
   // DESPESAS
-  { id: '1', name: 'Alimentação', iconName: 'Utensils', color: COLORS.orange, type: 'EXPENSE' },
-  { id: '2', name: 'Transporte', iconName: 'Car', color: COLORS.blue, type: 'EXPENSE' },
-  { id: '3', name: 'Lazer', iconName: 'Coffee', color: COLORS.purple, type: 'EXPENSE' },
-  { id: '4', name: 'Compras', iconName: 'ShoppingBag', color: COLORS.pink, type: 'EXPENSE' },
-  { id: '5', name: 'Saúde', iconName: 'Heart', color: COLORS.red, type: 'EXPENSE' },
-  { id: '6', name: 'Moradia', iconName: 'Home', color: COLORS.indigo, type: 'EXPENSE' },
-  { id: '7', name: 'Serviços', iconName: 'Zap', color: COLORS.yellow, type: 'EXPENSE' },
+  { id: '62c3e1b0-10f3-4d2c-8a1a-7b3c9d2e1f01', name: 'Alimentação', iconName: 'Utensils', color: COLORS.orange, type: 'EXPENSE' },
+  { id: '62c3e1b0-10f3-4d2c-8a1a-7b3c9d2e1f02', name: 'Transporte', iconName: 'Car', color: COLORS.blue, type: 'EXPENSE' },
+  { id: '62c3e1b0-10f3-4d2c-8a1a-7b3c9d2e1f03', name: 'Lazer', iconName: 'Coffee', color: COLORS.purple, type: 'EXPENSE' },
+  { id: '62c3e1b0-10f3-4d2c-8a1a-7b3c9d2e1f04', name: 'Compras', iconName: 'ShoppingBag', color: COLORS.pink, type: 'EXPENSE' },
+  { id: '62c3e1b0-10f3-4d2c-8a1a-7b3c9d2e1f05', name: 'Saúde', iconName: 'Heart', color: COLORS.red, type: 'EXPENSE' },
+  { id: '62c3e1b0-10f3-4d2c-8a1a-7b3c9d2e1f06', name: 'Moradia', iconName: 'Home', color: COLORS.indigo, type: 'EXPENSE' },
+  { id: '62c3e1b0-10f3-4d2c-8a1a-7b3c9d2e1f07', name: 'Serviços', iconName: 'Zap', color: COLORS.yellow, type: 'EXPENSE' },
+  
+  // CATEGORIA ESPECIAL
+  { id: '62c3e1b0-10f3-4d2c-8a1a-7b3c9d2e1f99', name: 'Reserva de Emergência', iconName: 'ShieldCheck', color: COLORS.gold, type: 'EXPENSE' },
+  
   // RECEITAS
-  { id: '8', name: 'Salário', iconName: 'Wallet', color: COLORS.emerald, type: 'INCOME' },
-  { id: '9', name: 'Comissão', iconName: 'TrendingUp', color: COLORS.cyan, type: 'INCOME' },
-  { id: '10', name: 'Renda Extra', iconName: 'Smartphone', color: COLORS.teal, type: 'INCOME' },
+  { id: '62c3e1b0-10f3-4d2c-8a1a-7b3c9d2e1f08', name: 'Salário', iconName: 'Wallet', color: COLORS.emerald, type: 'INCOME' },
+  { id: '62c3e1b0-10f3-4d2c-8a1a-7b3c9d2e1f09', name: 'Comissão', iconName: 'TrendingUp', color: COLORS.cyan, type: 'INCOME' },
+  { id: '62c3e1b0-10f3-4d2c-8a1a-7b3c9d2e1f10', name: 'Renda Extra', iconName: 'Smartphone', color: COLORS.teal, type: 'INCOME' },
 ];
 
 export const INITIAL_CARDS = [
   {
-    id: '1',
+    id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
     name: 'Nubank',
     bank: 'Nubank',
     limit: 5000,
