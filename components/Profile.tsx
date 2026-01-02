@@ -24,7 +24,10 @@ import {
   Camera, 
   RefreshCcw, 
   X, 
-  Check 
+  Check,
+  Landmark, // Ícone de Banco
+  Link as LinkIcon,
+  ShieldCheck
 } from 'lucide-react-native';
 import { supabase } from '../utils/supabase';
 import { FinanceService } from '../services/financeService';
@@ -38,19 +41,20 @@ interface Props {
 const Profile: React.FC<Props> = ({ profile, onUpdateProfile, onNavigate }) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Estado Simulado de Open Finance
+  const [isConnected, setIsConnected] = useState(false);
 
   // Estados de Edição
   const [editName, setEditName] = useState(profile.name);
   const [editAvatar, setEditAvatar] = useState(profile.avatar);
 
-  // Função para abrir o modal com os dados atuais
   const openEditModal = () => {
     setEditName(profile.name);
     setEditAvatar(profile.avatar);
     setShowEditModal(true);
   };
 
-  // Função para gerar avatar aleatório
   const generateRandomAvatar = () => {
     const randomSeed = Math.random().toString(36).substring(7);
     const newUrl = `https://api.dicebear.com/7.x/avataaars/png?seed=${randomSeed}&backgroundColor=b6e3f4`;
@@ -70,13 +74,8 @@ const Profile: React.FC<Props> = ({ profile, onUpdateProfile, onNavigate }) => {
         name: editName,
         avatar: editAvatar
       };
-
-      // 1. Salva no Supabase
       await FinanceService.updateProfile(updatedProfile);
-
-      // 2. Atualiza o estado local do App
       onUpdateProfile(updatedProfile);
-
       setShowEditModal(false);
       Alert.alert("Sucesso", "Perfil atualizado!");
     } catch (error) {
@@ -101,6 +100,29 @@ const Profile: React.FC<Props> = ({ profile, onUpdateProfile, onNavigate }) => {
           }
         }
       ]
+    );
+  };
+
+  // --- LÓGICA MOCK DE OPEN FINANCE ---
+  const handleConnectBank = () => {
+    if (isConnected) {
+        Alert.alert("Gerenciar Conexão", "Sua conexão com o Nubank está ativa e sincronizando.");
+        return;
+    }
+
+    Alert.alert(
+        "Open Finance (Simulação)",
+        "Aqui abriria o widget de conexão segura (Pluggy/Belvo) para você logar no seu banco.\n\nDeseja simular uma conexão bem-sucedida?",
+        [
+            { text: "Cancelar", style: "cancel" },
+            { 
+                text: "Simular Conexão", 
+                onPress: () => {
+                    setIsConnected(true);
+                    Alert.alert("Sucesso", "Conta 'Nubank' conectada! As transações seriam importadas agora.");
+                } 
+            }
+        ]
     );
   };
 
@@ -137,7 +159,32 @@ const Profile: React.FC<Props> = ({ profile, onUpdateProfile, onNavigate }) => {
         </View>
       </View>
 
-      {/* Menu */}
+      {/* --- SEÇÃO OPEN FINANCE --- */}
+      <View style={styles.section}>
+        <View style={{flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12}}>
+            <Text style={styles.sectionTitle}>Conexões Bancárias</Text>
+            <View style={styles.betaBadge}>
+                <Text style={styles.betaText}>BETA</Text>
+            </View>
+        </View>
+        
+        <TouchableOpacity onPress={handleConnectBank} style={[styles.connectCard, isConnected && styles.connectedBorder]}>
+            <View style={[styles.connectIconBg, isConnected && { backgroundColor: '#820ad1' }]}>
+                {isConnected ? <ShieldCheck size={24} color="#fff" /> : <Landmark size={24} color="#059669" />}
+            </View>
+            <View style={{flex: 1}}>
+                <Text style={styles.connectTitle}>
+                    {isConnected ? 'Nubank (Conectado)' : 'Conectar Conta Bancária'}
+                </Text>
+                <Text style={styles.connectSubtitle}>
+                    {isConnected ? 'Sincronização automática ativa' : 'Importe suas transações automaticamente'}
+                </Text>
+            </View>
+            <View style={[styles.statusDot, isConnected ? { backgroundColor: '#10b981' } : { backgroundColor: '#e2e8f0' }]} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Menu Configurações */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Configurações</Text>
         <View style={styles.menuContainer}>
@@ -258,6 +305,17 @@ const styles = StyleSheet.create({
 
   section: { marginBottom: 24 },
   sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#334155', marginBottom: 12, marginLeft: 4 },
+  
+  // OPEN FINANCE STYLES
+  betaBadge: { backgroundColor: '#dbeafe', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  betaText: { color: '#2563eb', fontSize: 10, fontWeight: 'bold' },
+  connectCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 16, borderRadius: 20, borderWidth: 1, borderColor: '#e2e8f0', gap: 16 },
+  connectedBorder: { borderColor: '#820ad1', backgroundColor: '#fdf4ff' },
+  connectIconBg: { width: 48, height: 48, borderRadius: 16, backgroundColor: '#ecfdf5', alignItems: 'center', justifyContent: 'center' },
+  connectTitle: { fontSize: 16, fontWeight: 'bold', color: '#1e293b' },
+  connectSubtitle: { fontSize: 12, color: '#64748b', marginTop: 2 },
+  statusDot: { width: 12, height: 12, borderRadius: 6 },
+
   menuContainer: { backgroundColor: '#fff', borderRadius: 24, borderWidth: 1, borderColor: '#f1f5f9', overflow: 'hidden' },
   menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
   borderBottom: { borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
