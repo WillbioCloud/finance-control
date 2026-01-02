@@ -79,26 +79,21 @@ export default function App() {
 
       if (txs) setTransactions(txs);
       
-      // --- LÓGICA DE SINCRONIZAÇÃO DE CATEGORIAS ---
+      // Sincronização de Categorias (Incluindo Reserva de Emergência)
       if (cats && cats.length > 0) {
         const mappedCats = cats.map((c: any) => ({ ...c, iconName: c.icon_name || c.iconName }));
-        
-        // Verifica se a categoria especial "Reserva de Emergência" está faltando no banco
         const emergencyCat = INITIAL_CATEGORIES.find(ic => ic.name === 'Reserva de Emergência');
         const hasEmergency = mappedCats.some(mc => mc.name === emergencyCat?.name);
 
         if (!hasEmergency && emergencyCat) {
-          // Se faltar, adiciona na lista local E salva no banco
           mappedCats.push(emergencyCat);
           await FinanceService.syncCategories([emergencyCat]);
         }
-
         setCategories(mappedCats);
       } else {
         await FinanceService.syncCategories(INITIAL_CATEGORIES);
         setCategories(INITIAL_CATEGORIES);
       }
-      // ---------------------------------------------
 
       if (metas) {
         const mappedGoals = metas.map((g: any) => ({
@@ -139,6 +134,19 @@ export default function App() {
     }
   };
 
+  // NOVO HANDLER PARA ATUALIZAÇÃO
+  const handleUpdateTransaction = async (updatedTx: Transaction) => {
+    // Atualiza estado local imediatamente
+    setTransactions(prev => prev.map(t => t.id === updatedTx.id ? updatedTx : t));
+    
+    try {
+      await FinanceService.updateTransaction(updatedTx);
+    } catch (error) {
+      Alert.alert("Erro", "Falha ao atualizar detalhes na nuvem.");
+      console.error(error);
+    }
+  };
+
   const handleDeleteTransaction = async (id: string) => {
     setTransactions(transactions.filter(t => t.id !== id));
     try { await FinanceService.deleteTransaction(id); } catch (error) { console.error(error); }
@@ -166,7 +174,14 @@ export default function App() {
     if (showAddModal) return <TransactionForm categories={categories} onAdd={handleAddTransaction} onCancel={() => setShowAddModal(false)} />;
     switch (activeTab) {
       case 'home': return <Dashboard transactions={transactions} goals={goals} cards={cards} userProfile={userProfile} categories={categories} onDeleteTransaction={handleDeleteTransaction} onNavigate={setActiveTab} />;
-      case 'list': return <TransactionsList transactions={transactions} categories={categories} onDelete={handleDeleteTransaction} />;
+      case 'list': return (
+        <TransactionsList 
+          transactions={transactions} 
+          categories={categories} 
+          onDelete={handleDeleteTransaction}
+          onUpdate={handleUpdateTransaction} // PASSANDO A NOVA FUNÇÃO
+        />
+      );
       case 'analysis': return <Analysis transactions={transactions} categories={categories} />;
       case 'cards': return <CardsManager cards={cards} onUpdate={handleUpdateCards} onAddCard={() => {}} />;
       case 'goals': return <GoalsManager goals={goals} onUpdate={handleUpdateGoals} transactions={transactions} categories={categories} onAddTransaction={handleAddTransaction} />;

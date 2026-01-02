@@ -15,6 +15,7 @@ import {
 
 const COLORS = {
   orange: '#f97316',
+  green: '#10b981',
   blue: '#3b82f6',
   purple: '#a855f7',
   pink: '#ec4899',
@@ -30,7 +31,7 @@ const COLORS = {
 
 export const INITIAL_CATEGORIES = [
   // DESPESAS
-  { id: '62c3e1b0-10f3-4d2c-8a1a-7b3c9d2e1f01', name: 'Alimentação', iconName: 'Utensils', color: COLORS.orange, type: 'EXPENSE' },
+  { id: '62c3e1b0-10f3-4d2c-8a1a-7b3c9d2e1f01', name: 'Alimentação', iconName: 'Utensils', color: COLORS.green, type: 'EXPENSE' },
   { id: '62c3e1b0-10f3-4d2c-8a1a-7b3c9d2e1f02', name: 'Transporte', iconName: 'Car', color: COLORS.blue, type: 'EXPENSE' },
   { id: '62c3e1b0-10f3-4d2c-8a1a-7b3c9d2e1f03', name: 'Lazer', iconName: 'Coffee', color: COLORS.purple, type: 'EXPENSE' },
   { id: '62c3e1b0-10f3-4d2c-8a1a-7b3c9d2e1f04', name: 'Compras', iconName: 'ShoppingBag', color: COLORS.pink, type: 'EXPENSE' },

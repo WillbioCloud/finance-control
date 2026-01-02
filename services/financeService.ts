@@ -62,7 +62,6 @@ export const FinanceService = {
     
     if (error) throw error;
     
-    // Mapeia do Banco (snake_case) para o App (camelCase)
     return data.map((t: any) => ({
       id: t.id,
       amount: t.amount,
@@ -70,9 +69,9 @@ export const FinanceService = {
       category: t.category,
       type: t.type,
       date: t.date,
-      paymentMethod: t.payment_method, // Correção
-      isRecurrent: t.is_recurrent,     // Correção
-      recurrenceType: t.recurrence_type, // Correção
+      paymentMethod: t.payment_method,
+      isRecurrent: t.is_recurrent,
+      recurrenceType: t.recurrence_type,
       details: t.details
     })) as Transaction[];
   },
@@ -80,7 +79,6 @@ export const FinanceService = {
   async addTransaction(transaction: Omit<Transaction, 'id'>) {
     const userId = await getUserId();
     
-    // Mapeia do App para o Banco (CORREÇÃO DO ERRO)
     const txToSave = {
       user_id: userId,
       amount: transaction.amount,
@@ -88,9 +86,9 @@ export const FinanceService = {
       category: transaction.category,
       type: transaction.type,
       date: transaction.date,
-      payment_method: transaction.paymentMethod, // camel -> snake
-      is_recurrent: transaction.isRecurrent,     // camel -> snake
-      recurrence_type: transaction.recurrenceType, // camel -> snake
+      payment_method: transaction.paymentMethod,
+      is_recurrent: transaction.isRecurrent,
+      recurrence_type: transaction.recurrenceType,
       details: transaction.details
     };
 
@@ -102,11 +100,32 @@ export const FinanceService = {
       
     if (error) throw error;
     
-    // Retorna formatado para o App usar imediatamente
     return {
       ...transaction,
       id: data.id
     } as Transaction;
+  },
+
+  // NOVO: Função para ATUALIZAR uma transação existente
+  async updateTransaction(transaction: Transaction) {
+    const txToUpdate = {
+      amount: transaction.amount,
+      description: transaction.description,
+      category: transaction.category,
+      type: transaction.type,
+      date: transaction.date,
+      payment_method: transaction.paymentMethod,
+      is_recurrent: transaction.isRecurrent,
+      recurrence_type: transaction.recurrenceType,
+      details: transaction.details
+    };
+
+    const { error } = await supabase
+      .from('transactions')
+      .update(txToUpdate)
+      .eq('id', transaction.id);
+
+    if (error) throw error;
   },
 
   async deleteTransaction(id: string) {
@@ -122,7 +141,7 @@ export const FinanceService = {
     return data.map((c: any) => ({
       id: c.id,
       name: c.name,
-      iconName: c.icon_name, // Correção
+      iconName: c.icon_name,
       color: c.color,
       type: c.type
     })) as Category[];
@@ -131,12 +150,11 @@ export const FinanceService = {
   async syncCategories(categories: Category[]) {
     const userId = await getUserId();
     
-    // CORREÇÃO CRÍTICA: Mapeamento explícito para evitar enviar 'iconName'
     const catsWithUser = categories.map(c => ({ 
       id: c.id,
       user_id: userId,
       name: c.name,
-      icon_name: c.iconName, // camel -> snake
+      icon_name: c.iconName,
       color: c.color,
       type: c.type
     }));
@@ -147,7 +165,7 @@ export const FinanceService = {
       .select();
       
     if (error) throw error;
-    return data; // O app atualiza o estado local, não precisa mapear o retorno aqui necessariamente
+    return data;
   },
 
   // --- METAS ---
